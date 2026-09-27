@@ -9,7 +9,8 @@ public final class StatusItemController: NSObject {
     private let contextMenu = NSMenu()
     
     public init(shelfController: ShelfController) {
-        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // Fixed length provides a stable buffer zone on both sides so number fluctuations do not move the app
+        self.statusItem = NSStatusBar.system.statusItem(withLength: 195)
         self.shelfController = shelfController
         super.init()
         
@@ -56,18 +57,65 @@ public final class StatusItemController: NSObject {
     public func updateTitle(cpuPercent: Int, ramPercent: Int, rxRate: Double, txRate: Double) {
         guard let button = statusItem.button else { return }
         
-        let downStr = TuckedFormatter.formatMenuBarRate(rxRate)
-        let upStr = TuckedFormatter.formatMenuBarRate(txRate)
-        let titleString = "CPU \(cpuPercent) · RAM \(ramPercent) · ↓\(downStr) ↑\(upStr)"
+        let (downVal, downUnit) = TuckedFormatter.menuBarRateComponents(rxRate)
+        let (upVal, upUnit) = TuckedFormatter.menuBarRateComponents(txRate)
         
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.labelColor
-        ]
+        let labelFont = NSFont.systemFont(ofSize: 10.5, weight: .regular)
+        let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .medium)
+        let separatorFont = NSFont.systemFont(ofSize: 10, weight: .regular)
+        let arrowFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
+        let unitFont = NSFont.systemFont(ofSize: 8.5, weight: .semibold)
         
-        button.attributedTitle = NSAttributedString(string: titleString, attributes: attributes)
-        button.toolTip = "Tucked: CPU \(cpuPercent)%, RAM \(ramPercent)%, Download \(downStr)/s, Upload \(upStr)/s"
+        let primaryColor = NSColor.labelColor
+        let secondaryColor = NSColor.secondaryLabelColor
+        let separatorColor = NSColor.tertiaryLabelColor
+        
+        let attributed = NSMutableAttributedString()
+        
+        func append(_ text: String, font: NSFont, color: NSColor, baselineOffset: CGFloat = 0) {
+            var attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: color
+            ]
+            if baselineOffset != 0 {
+                attrs[.baselineOffset] = baselineOffset
+            }
+            attributed.append(NSAttributedString(string: text, attributes: attrs))
+        }
+        
+        // CPU
+        append("CPU ", font: labelFont, color: secondaryColor)
+        append("\(cpuPercent)", font: numberFont, color: primaryColor)
+        
+        // Separator
+        append("  ·  ", font: separatorFont, color: separatorColor)
+        
+        // RAM
+        append("RAM ", font: labelFont, color: secondaryColor)
+        append("\(ramPercent)", font: numberFont, color: primaryColor)
+        
+        // Separator
+        append("  ·  ", font: separatorFont, color: separatorColor)
+        
+        // Download: ↓ 13K
+        append("↓", font: arrowFont, color: secondaryColor, baselineOffset: 0.5)
+        append(downVal, font: numberFont, color: primaryColor)
+        append(downUnit, font: unitFont, color: secondaryColor, baselineOffset: 0.8)
+        
+        append(" ", font: labelFont, color: secondaryColor)
+        
+        // Upload: ↑ 151K
+        append("↑", font: arrowFont, color: secondaryColor, baselineOffset: 0.5)
+        append(upVal, font: numberFont, color: primaryColor)
+        append(upUnit, font: unitFont, color: secondaryColor, baselineOffset: 0.8)
+        
+        // Center alignment so content expands symmetrically in the buffer zone
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        attributed.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: attributed.length))
+        
+        button.attributedTitle = attributed
+        button.toolTip = "Tucked: CPU \(cpuPercent)%, RAM \(ramPercent)%, Download \(downVal)\(downUnit)/s, Upload \(upVal)\(upUnit)/s"
     }
     
     @objc private func handleButtonClick(_ sender: NSStatusBarButton) {
