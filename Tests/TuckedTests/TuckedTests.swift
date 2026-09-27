@@ -100,6 +100,13 @@ struct ProcessTerminationPolicyTests {
         // Same user CLI process is closable
         #expect(ProcessTerminationPolicy.isClosable(pid: 300, name: "node", ownerUID: currentUID))
     }
+    
+    @Test func testTerminateRefusesProtectedProcesses() {
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        #expect(!ProcessTerminationPolicy.terminate(pid: 0, expectedName: "kernel_task"))
+        #expect(!ProcessTerminationPolicy.terminate(pid: 1, expectedName: "launchd"))
+        #expect(!ProcessTerminationPolicy.terminate(pid: ownPID, expectedName: "Tucked"))
+    }
 }
 
 @Suite("Calculation and Math Fixtures")

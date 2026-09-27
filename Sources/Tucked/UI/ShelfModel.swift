@@ -35,11 +35,11 @@ public final class ShelfModel: ObservableObject {
     }
     
     public func requestQuit(for item: ProcessItem) {
-        let success = ProcessTerminationPolicy.requestNormalQuit(pid: item.pid, expectedName: item.name)
+        let success = ProcessTerminationPolicy.terminate(pid: item.pid, expectedName: item.name)
         if success {
-            quitStatusMessage = "Quit requested for \(item.name)"
+            quitStatusMessage = "Terminated \(item.name)"
         } else {
-            quitStatusMessage = "Couldn't quit \(item.name)"
+            quitStatusMessage = "Couldn't terminate \(item.name)"
         }
         
         Task {

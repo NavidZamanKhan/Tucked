@@ -43,21 +43,12 @@ public enum ProcessTerminationPolicy {
         return true
     }
     
-    /// Requests normal termination for a validated process.
-    public static func requestNormalQuit(pid: Int32, expectedName: String) -> Bool {
+    /// Terminates a validated runaway or user-selected process via SIGKILL.
+    @discardableResult
+    public static func terminate(pid: Int32, expectedName: String) -> Bool {
         guard pid > 1 else { return false }
         guard pid != ProcessInfo.processInfo.processIdentifier else { return false }
         
-        // Step 1: Check if it is a GUI application
-        if let app = NSRunningApplication(processIdentifier: pid) {
-            // Verify application identity
-            if let localizedName = app.localizedName, !localizedName.isEmpty {
-                TuckedLog.termination.info("Requesting GUI normal terminate for \(localizedName) [PID \(pid)]")
-            }
-            return app.terminate()
-        }
-        
-        // Step 2: Same-user CLI process -> SIGTERM only
         let currentUID = getuid()
         var bsdInfo = proc_bsdinfo()
         let size = Int32(MemoryLayout<proc_bsdinfo>.size)
@@ -84,8 +75,21 @@ public enum ProcessTerminationPolicy {
             return false
         }
         
-        TuckedLog.termination.info("Sending SIGTERM to CLI process \(pbiName) [PID \(pid)]")
-        let killResult = kill(pid, SIGTERM)
-        return killResult == 0
+        if let app = NSRunningApplication(processIdentifier: pid) {
+            let appName = app.localizedName ?? pbiName
+            TuckedLog.termination.info("Terminating GUI application \(appName) [PID \(pid)] via SIGKILL")
+            _ = app.forceTerminate()
+        } else {
+            TuckedLog.termination.info("Terminating CLI process \(pbiName) [PID \(pid)] via SIGKILL")
+        }
+        
+        let killResult = kill(pid, SIGKILL)
+        return killResult == 0 || errno == ESRCH
+    }
+    
+    /// Backward-compatible alias for process termination.
+    @discardableResult
+    public static func requestNormalQuit(pid: Int32, expectedName: String) -> Bool {
+        return terminate(pid: pid, expectedName: expectedName)
     }
 }
