@@ -231,3 +231,26 @@ struct ProcessIconProviderTests {
     }
 }
 
+@Suite("AppTheme Tests")
+struct AppThemeTests {
+    @Test func testAppThemeOptionsAndTitles() {
+        #expect(AppTheme.allCases.count == 3)
+        #expect(AppTheme.system.title == "System")
+        #expect(AppTheme.light.title == "Light")
+        #expect(AppTheme.dark.title == "Dark")
+    }
+    
+    @Test func testPreferencesThemePersistence() {
+        let suite = UserDefaults(suiteName: "test.preferences.theme.\(UUID().uuidString)")!
+        let prefs = Preferences(defaults: suite)
+        #expect(prefs.appTheme == .system)
+        
+        prefs.appTheme = .dark
+        #expect(prefs.appTheme == .dark)
+        
+        prefs.appTheme = .light
+        #expect(prefs.appTheme == .light)
+    }
+}
+
+

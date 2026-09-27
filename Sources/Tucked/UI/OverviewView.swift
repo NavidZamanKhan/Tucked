@@ -25,7 +25,7 @@ public struct OverviewView: View {
                         .foregroundColor(.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.black.opacity(0.06))
+                        .background(Color.primary.opacity(0.08))
                         .cornerRadius(4)
                 }
                 

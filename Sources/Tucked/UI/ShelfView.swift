@@ -10,7 +10,8 @@ public struct ShelfView: View {
     
     public var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color(nsColor: .windowBackgroundColor)
+                .ignoresSafeArea()
             
             Group {
                 switch model.currentRoute {
@@ -21,6 +22,6 @@ public struct ShelfView: View {
                 }
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(model.preferredColorScheme)
     }
 }

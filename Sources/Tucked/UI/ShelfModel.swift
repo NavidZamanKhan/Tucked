@@ -20,6 +20,22 @@ public final class ShelfModel: ObservableObject {
     // Status message for process termination
     @Published public var quitStatusMessage: String?
     
+    // Active appearance theme
+    @Published public var currentTheme: AppTheme = Preferences.shared.appTheme
+    
+    public var preferredColorScheme: ColorScheme? {
+        switch currentTheme {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+    
+    public func setTheme(_ theme: AppTheme) {
+        currentTheme = theme
+        Preferences.shared.appTheme = theme
+    }
+    
     public init() {}
     
     public func updateSystemSnapshot(_ snapshot: SystemSnapshot, history: HistoryStore) {

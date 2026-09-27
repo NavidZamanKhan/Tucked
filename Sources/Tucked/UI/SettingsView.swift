@@ -43,6 +43,27 @@ public struct SettingsView: View {
             
             Divider()
             
+            // Theme Section
+            VStack(alignment: .leading, spacing: 10) {
+                Text("THEME")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                
+                Picker("Theme", selection: Binding(
+                    get: { model.currentTheme },
+                    set: { newTheme in model.setTheme(newTheme) }
+                )) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Text(theme.title).tag(theme)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 240)
+            }
+            
+            Divider()
+            
             // General Settings
             VStack(alignment: .leading, spacing: 12) {
                 Text("GENERAL")

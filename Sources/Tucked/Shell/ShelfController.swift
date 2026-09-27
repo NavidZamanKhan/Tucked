@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import SwiftUI
+import Combine
 
 /// Controls the NSPopover presenting the single Tucked shelf surface.
 @MainActor
@@ -10,6 +11,7 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
     private weak var coordinator: MonitoringCoordinator?
     private var globalMonitor: Any?
     private var localMonitor: Any?
+    private var cancellables = Set<AnyCancellable>()
     
     public init(model: ShelfModel, coordinator: MonitoringCoordinator) {
         self.popover = NSPopover()
@@ -24,11 +26,29 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
         popover.behavior = .transient
         popover.animates = true
         popover.delegate = self
-        popover.appearance = NSAppearance(named: .aqua)
+        
+        updatePopoverAppearance(theme: model.currentTheme)
+        
+        model.$currentTheme
+            .sink { [weak self] theme in
+                self?.updatePopoverAppearance(theme: theme)
+            }
+            .store(in: &cancellables)
         
         let contentView = ShelfView(model: model)
         let hostingController = NSHostingController(rootView: contentView)
         popover.contentViewController = hostingController
+    }
+    
+    public func updatePopoverAppearance(theme: AppTheme) {
+        switch theme {
+        case .system:
+            popover.appearance = nil
+        case .light:
+            popover.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            popover.appearance = NSAppearance(named: .darkAqua)
+        }
     }
     
     public var isVisible: Bool {
@@ -48,6 +68,7 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
         
         // Ensure starting on Overview route
         model.navigateToOverview()
+        updatePopoverAppearance(theme: model.currentTheme)
         
         popover.show(
             relativeTo: positioningView.bounds,
