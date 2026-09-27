@@ -48,8 +48,9 @@ struct FormattersTests {
     }
     
     @Test func testByteFormatting() {
-        #expect(TuckedFormatter.formatBytes(500_000_000) == "500 MB")
-        #expect(TuckedFormatter.formatBytes(12_300_000_000) == "12.3 GB")
+        // Binary (1024-based) memory formatting matching macOS Activity Monitor
+        #expect(TuckedFormatter.formatBytes(512 * 1024 * 1024) == "512 MB")
+        #expect(TuckedFormatter.formatBytes(16 * 1024 * 1024 * 1024) == "16.0 GB")
     }
     
     @Test func testPercentageFormatting() {

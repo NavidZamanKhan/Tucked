@@ -62,15 +62,19 @@ public enum TuckedFormatter {
         }
     }
     
-    /// Memory size formatting in decimal GB / MB (e.g. 12.3 GB, 500 MB).
+    /// Memory size formatting in binary GB / MB / KB matching macOS Activity Monitor (e.g. 12.3 GB, 500 MB).
     public static func formatBytes(_ bytes: UInt64) -> String {
         let b = Double(bytes)
-        if b < 1_000_000 {
-            return "\(Int(round(b / 1000.0))) KB"
-        } else if b < 1_000_000_000 {
-            return "\(Int(round(b / 1_000_000.0))) MB"
+        let kib: Double = 1024.0
+        let mib: Double = 1024.0 * 1024.0
+        let gib: Double = 1024.0 * 1024.0 * 1024.0
+        
+        if b < mib {
+            return "\(Int(round(b / kib))) KB"
+        } else if b < gib {
+            return "\(Int(round(b / mib))) MB"
         } else {
-            let gb = b / 1_000_000_000.0
+            let gb = b / gib
             return String(format: "%.1f GB", gb)
         }
     }
