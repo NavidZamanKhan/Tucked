@@ -428,6 +428,30 @@ struct ShelfModelActionTests {
         model.resetNetworkTotals()
         #expect(box.called == true)
     }
+    
+    @Test @MainActor func testDynamicIslandInitialAnimationState() {
+        let model = ShelfModel()
+        #expect(model.isShelfPresented == false)
+        #expect(model.anchorXFraction == 0.5)
+        
+        let box = ResetBox()
+        model.onCloseRequested = {
+            box.called = true
+        }
+        model.requestClose()
+        #expect(box.called == true)
+    }
+
+    @Test @MainActor func testDynamicIslandPanelConfiguration() {
+        let rect = NSRect(x: 100, y: 100, width: 610, height: 740)
+        let panel = DynamicIslandPanel(contentRect: rect)
+        #expect(panel.isFloatingPanel == true)
+        #expect(panel.level == .statusBar)
+        #expect(panel.isOpaque == false)
+        #expect(panel.hasShadow == false)
+        #expect(panel.canBecomeKey == true)
+        #expect(panel.canBecomeMain == false)
+    }
 }
 
 

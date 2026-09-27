@@ -20,6 +20,17 @@ public final class ShelfModel: ObservableObject {
     // Status message for process termination
     @Published public var quitStatusMessage: String?
     
+    // Dynamic Island opening presentation and morph anchor states
+    @Published public var isShelfPresented: Bool = false
+    @Published public var anchorXFraction: CGFloat = 0.5
+    
+    // Callback to request closing from view interaction
+    public var onCloseRequested: (@Sendable () -> Void)?
+    
+    public func requestClose() {
+        onCloseRequested?()
+    }
+    
     // Active appearance theme
     @Published public var currentTheme: AppTheme = Preferences.shared.appTheme
     @Published public var isSystemDark: Bool = ShelfModel.checkSystemDark()
