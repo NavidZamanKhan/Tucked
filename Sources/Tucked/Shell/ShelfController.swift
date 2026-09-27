@@ -34,6 +34,18 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
                 self?.updatePopoverAppearance(theme: theme)
             }
             .store(in: &cancellables)
+            
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                self.model.isSystemDark = ShelfModel.checkSystemDark()
+                self.updatePopoverAppearance(theme: self.model.currentTheme)
+            }
+        }
         
         let contentView = ShelfView(model: model)
         let hostingController = NSHostingController(rootView: contentView)
@@ -43,7 +55,8 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
     public func updatePopoverAppearance(theme: AppTheme) {
         switch theme {
         case .system:
-            popover.appearance = nil
+            let isDark = ShelfModel.checkSystemDark()
+            popover.appearance = isDark ? NSAppearance(named: .darkAqua) : NSAppearance(named: .aqua)
         case .light:
             popover.appearance = NSAppearance(named: .aqua)
         case .dark:
@@ -68,6 +81,7 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
         
         // Ensure starting on Overview route
         model.navigateToOverview()
+        model.isSystemDark = ShelfModel.checkSystemDark()
         updatePopoverAppearance(theme: model.currentTheme)
         
         popover.show(

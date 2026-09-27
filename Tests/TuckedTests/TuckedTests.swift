@@ -318,3 +318,21 @@ struct SparklineViewsTests {
         #expect(view.capacity == 90)
     }
 }
+
+@Suite("MachineInfo Tests")
+struct MachineInfoTests {
+    @Test func testMachineInfoCurrent() {
+        let info = MachineInfo.current
+        #expect(!info.model.isEmpty)
+        #expect(!info.chip.isEmpty)
+        #expect(info.coreCount > 0)
+        #expect(info.memoryBytes > 0)
+        #expect(!info.osVersion.isEmpty)
+        #expect(info.architecture == "arm64")
+        #expect(!info.formattedMemory.isEmpty)
+        #expect(!info.formattedOS.isEmpty)
+        #expect(!info.formattedCores.isEmpty)
+        #expect(!MachineInfo.uptimeString.isEmpty)
+    }
+}
+

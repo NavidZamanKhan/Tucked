@@ -22,10 +22,23 @@ public final class ShelfModel: ObservableObject {
     
     // Active appearance theme
     @Published public var currentTheme: AppTheme = Preferences.shared.appTheme
+    @Published public var isSystemDark: Bool = ShelfModel.checkSystemDark()
+    
+    public static func checkSystemDark() -> Bool {
+        return NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+    
+    public var isEffectiveDark: Bool {
+        switch currentTheme {
+        case .system: return isSystemDark
+        case .light: return false
+        case .dark: return true
+        }
+    }
     
     public var preferredColorScheme: ColorScheme? {
         switch currentTheme {
-        case .system: return nil
+        case .system: return isSystemDark ? .dark : .light
         case .light: return .light
         case .dark: return .dark
         }
@@ -34,9 +47,20 @@ public final class ShelfModel: ObservableObject {
     public func setTheme(_ theme: AppTheme) {
         currentTheme = theme
         Preferences.shared.appTheme = theme
+        isSystemDark = ShelfModel.checkSystemDark()
     }
     
-    public init() {}
+    public init() {
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.isSystemDark = ShelfModel.checkSystemDark()
+            }
+        }
+    }
     
     public func updateSystemSnapshot(_ snapshot: SystemSnapshot, history: HistoryStore) {
         self.systemSnapshot = snapshot

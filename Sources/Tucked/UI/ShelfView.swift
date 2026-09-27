@@ -8,9 +8,17 @@ public struct ShelfView: View {
         self.model = model
     }
     
+    private var backgroundColor: Color {
+        if model.isEffectiveDark {
+            return Color(red: 0.08, green: 0.08, blue: 0.09)
+        } else {
+            return Color(red: 0.96, green: 0.96, blue: 0.97)
+        }
+    }
+    
     public var body: some View {
         ZStack {
-            Color(nsColor: .windowBackgroundColor)
+            backgroundColor
                 .ignoresSafeArea()
             
             Group {
