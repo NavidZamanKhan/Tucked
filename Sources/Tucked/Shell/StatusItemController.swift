@@ -40,29 +40,29 @@ final class TuckedStatusView: NSView {
         let sep1 = NSAttributedString(string: "·", attributes: [.font: separatorFont, .foregroundColor: separatorColor])
         sep1.draw(at: NSPoint(x: 48, y: yBaseline))
         
-        // Slot 2: RAM (fixed at x: 56, buffer width: 42)
+        // Slot 2: RAM (fixed at x: 58, buffer width: 42)
         let ramAttr = NSMutableAttributedString()
         ramAttr.append(NSAttributedString(string: "RAM ", attributes: [.font: labelFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
         ramAttr.append(NSAttributedString(string: "\(ramPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
-        ramAttr.draw(at: NSPoint(x: 56, y: yBaseline))
+        ramAttr.draw(at: NSPoint(x: 58, y: yBaseline))
         
-        // Separator 2 (fixed at x: 98)
+        // Separator 2 (fixed at x: 104)
         let sep2 = NSAttributedString(string: "·", attributes: [.font: separatorFont, .foregroundColor: separatorColor])
-        sep2.draw(at: NSPoint(x: 98, y: yBaseline))
+        sep2.draw(at: NSPoint(x: 104, y: yBaseline))
         
-        // Slot 3: Download (fixed at x: 106, buffer width: 44)
+        // Slot 3: Download (fixed at x: 114, buffer width: 44)
         let downAttr = NSMutableAttributedString()
         downAttr.append(NSAttributedString(string: "↓", attributes: [.font: arrowFont, .foregroundColor: labelColor, .baselineOffset: 0.5, .kern: 1.5]))
         downAttr.append(NSAttributedString(string: downVal, attributes: [.font: numberFont, .foregroundColor: textColor]))
         downAttr.append(NSAttributedString(string: downUnit, attributes: [.font: unitFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
-        downAttr.draw(at: NSPoint(x: 106, y: yBaseline))
+        downAttr.draw(at: NSPoint(x: 114, y: yBaseline))
         
-        // Slot 4: Upload (fixed at x: 154, buffer width: 44)
+        // Slot 4: Upload (fixed at x: 164, buffer width: 44)
         let upAttr = NSMutableAttributedString()
         upAttr.append(NSAttributedString(string: "↑", attributes: [.font: arrowFont, .foregroundColor: labelColor, .baselineOffset: 0.5, .kern: 1.5]))
         upAttr.append(NSAttributedString(string: upVal, attributes: [.font: numberFont, .foregroundColor: textColor]))
         upAttr.append(NSAttributedString(string: upUnit, attributes: [.font: unitFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
-        upAttr.draw(at: NSPoint(x: 154, y: yBaseline))
+        upAttr.draw(at: NSPoint(x: 164, y: yBaseline))
     }
 }
 
@@ -75,7 +75,7 @@ public final class StatusItemController: NSObject {
     private let contextMenu = NSMenu()
     
     public init(shelfController: ShelfController) {
-        let totalWidth: CGFloat = 198
+        let totalWidth: CGFloat = 208
         // Fixed length provides a stable buffer zone on both sides so number fluctuations do not move the app
         self.statusItem = NSStatusBar.system.statusItem(withLength: totalWidth)
         self.shelfController = shelfController
@@ -153,7 +153,7 @@ public final class StatusItemController: NSObject {
             statusItem.button?.performClick(nil)
             statusItem.menu = nil
         } else {
-            if let shelf = shelfController, Date().timeIntervalSince(shelf.lastDismissalTime) < 0.25 {
+            if let shelf = shelfController, Date().timeIntervalSince(shelf.lastDismissalTime) < 0.35 {
                 return
             }
             shelfController?.toggle(relativeTo: sender)

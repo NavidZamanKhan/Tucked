@@ -183,6 +183,8 @@ public final class ShelfController: NSObject {
     public func close() {
         guard isVisible else { return }
         
+        lastDismissalTime = Date()
+        
         removeEventMonitors()
         coordinator?.shelfDidClose()
         
@@ -277,18 +279,10 @@ public final class ShelfController: NSObject {
                     if eventWindow === self.panel {
                         return event
                     }
-                    if let button = self.statusItemButton, let window = button.window, eventWindow === window {
-                        self.recordDismissal()
-                        self.close()
-                        return event
-                    }
-                    Task { @MainActor [weak self] in
-                        self?.close()
-                    }
+                    self.close()
+                    return event
                 } else {
-                    Task { @MainActor [weak self] in
-                        self?.close()
-                    }
+                    self.close()
                 }
             }
             
@@ -298,17 +292,6 @@ public final class ShelfController: NSObject {
         // Global monitor for clicks outside the application
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self = self, self.isVisible else { return }
-            
-            let mouseLocation = NSEvent.mouseLocation
-            if let button = self.statusItemButton, let window = button.window {
-                if window.frame.contains(mouseLocation) {
-                    Task { @MainActor [weak self] in
-                        self?.recordDismissal()
-                        self?.close()
-                    }
-                    return
-                }
-            }
             
             Task { @MainActor [weak self] in
                 self?.close()
