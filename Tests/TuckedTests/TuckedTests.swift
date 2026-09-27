@@ -67,6 +67,8 @@ struct FormattersTests {
     @Test func testFanFormatting() {
         #expect(TuckedFormatter.formatFanRPM(isFanless: true, rpms: []) == "Fanless")
         #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: []) == "-")
+        #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: [0]) == "0 RPM (Idle)")
+        #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: [0, 0]) == "0 / 0 RPM (Idle)")
         #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: [1840]) == "1840 RPM")
         #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: [1840, 1920]) == "1840 / 1920 RPM")
     }

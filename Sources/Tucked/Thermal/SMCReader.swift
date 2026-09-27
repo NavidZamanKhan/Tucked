@@ -62,6 +62,7 @@ public final class SMCReader: @unchecked Sendable {
     private var validatedCPUKeys: [String] = []
     private var discoveredFanCount: Int?
     private var isDiscovered: Bool = false
+    private var lastKnownFanRPMs: [Int: Int] = [:]
 
     public init() {}
 
@@ -193,9 +194,12 @@ public final class SMCReader: @unchecked Sendable {
         for i in 0..<count {
             let key = SensorCatalog.fanActualRPMKey(index: i)
             if let rpm = readNumericKey(key) {
-                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: max(0, Int(round(rpm)))))
+                let rounded = max(0, Int(round(rpm)))
+                lastKnownFanRPMs[i] = rounded
+                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: rounded))
             } else {
-                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: 0))
+                let fallback = lastKnownFanRPMs[i] ?? 0
+                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: fallback))
             }
         }
         

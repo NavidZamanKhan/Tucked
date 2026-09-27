@@ -101,9 +101,17 @@ public enum TuckedFormatter {
             return "-"
         }
         if rpms.count == 1 {
-            return "\(rpms[0]) RPM"
+            let rpm = rpms[0]
+            if rpm == 0 {
+                return "0 RPM (Idle)"
+            }
+            return "\(rpm) RPM"
         } else {
+            let allZero = rpms.allSatisfy { $0 == 0 }
             let joined = rpms.map { "\($0)" }.joined(separator: " / ")
+            if allZero {
+                return "\(joined) RPM (Idle)"
+            }
             return "\(joined) RPM"
         }
     }
