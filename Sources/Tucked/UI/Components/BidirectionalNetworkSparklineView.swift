@@ -40,27 +40,31 @@ public struct BidirectionalNetworkSparklineView: View {
 
             let totalSlots = CGFloat(effectiveCapacity)
             let slotWidth = size.width / totalSlots
-            let rawBarWidth = max(pixel, slotWidth * 0.55)
-            let barWidth = max(pixel, round(rawBarWidth * scale) * pixel)
+            let strokeStyle = StrokeStyle(lineWidth: pixel, lineCap: .butt)
 
             // Render Download Bars (pointing UPWARD into top half from midY)
             if !visibleDownload.isEmpty {
                 let downloadCeiling = Self.steppedCeiling(for: visibleDownload.max() ?? 0.0)
                 let startX = max(0, size.width - CGFloat(visibleDownload.count) * slotWidth)
+                var downloadPath = Path()
 
                 for (index, value) in visibleDownload.enumerated() {
                     guard value > 0 else { continue }
-                    let rawX = startX + CGFloat(index) * slotWidth + (slotWidth - barWidth) / 2.0
-                    let barX = round(rawX * scale) * pixel
+                    let rawX = startX + (CGFloat(index) + 0.5) * slotWidth
+                    let barX = (floor(rawX * scale) + 0.5) * pixel
 
                     let normalized = CGFloat(max(0.0, min(1.0, value / downloadCeiling)))
                     let rawHeight = normalized * usableHalfHeight
                     // Minimum 1-pixel tick for active download traffic
                     let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
-                    let barY = midY - barHeight
+                    let barTopY = midY - barHeight
 
-                    let barRect = CGRect(x: barX, y: barY, width: barWidth, height: barHeight)
-                    context.fill(Path(barRect), with: .color(downloadColor))
+                    downloadPath.move(to: CGPoint(x: barX, y: midY))
+                    downloadPath.addLine(to: CGPoint(x: barX, y: barTopY))
+                }
+
+                if !downloadPath.isEmpty {
+                    context.stroke(downloadPath, with: .color(downloadColor.opacity(0.85)), style: strokeStyle)
                 }
             }
 
@@ -69,20 +73,25 @@ public struct BidirectionalNetworkSparklineView: View {
                 let uploadCeiling = Self.steppedCeiling(for: visibleUpload.max() ?? 0.0)
                 let startX = max(0, size.width - CGFloat(visibleUpload.count) * slotWidth)
                 let uploadBaselineY = midY + pixel
+                var uploadPath = Path()
 
                 for (index, value) in visibleUpload.enumerated() {
                     guard value > 0 else { continue }
-                    let rawX = startX + CGFloat(index) * slotWidth + (slotWidth - barWidth) / 2.0
-                    let barX = round(rawX * scale) * pixel
+                    let rawX = startX + (CGFloat(index) + 0.5) * slotWidth
+                    let barX = (floor(rawX * scale) + 0.5) * pixel
 
                     let normalized = CGFloat(max(0.0, min(1.0, value / uploadCeiling)))
                     let rawHeight = normalized * usableHalfHeight
                     // Minimum 1-pixel tick for active upload traffic
                     let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
-                    let barY = uploadBaselineY
+                    let barBottomY = uploadBaselineY + barHeight
 
-                    let barRect = CGRect(x: barX, y: barY, width: barWidth, height: barHeight)
-                    context.fill(Path(barRect), with: .color(uploadColor))
+                    uploadPath.move(to: CGPoint(x: barX, y: uploadBaselineY))
+                    uploadPath.addLine(to: CGPoint(x: barX, y: barBottomY))
+                }
+
+                if !uploadPath.isEmpty {
+                    context.stroke(uploadPath, with: .color(uploadColor.opacity(0.85)), style: strokeStyle)
                 }
             }
 

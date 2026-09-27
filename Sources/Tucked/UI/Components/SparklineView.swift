@@ -35,28 +35,40 @@ public struct SparklineView: View {
                 maxVal = 100.0
             }
 
-            let baselineY = (floor((size.height - 2.0 * pixel) * scale)) * pixel
+            let baselineY = floor((size.height - 2.0 * pixel) * scale) * pixel
             let usableHeight = max(baselineY - (2.0 * pixel), 1.0)
             let totalSlots = CGFloat(effectiveCapacity)
             let slotWidth = size.width / totalSlots
-
-            // Ultra-thin bar width with tight comb spacing
-            let rawBarWidth = max(pixel, slotWidth * 0.55)
-            let barWidth = max(pixel, round(rawBarWidth * scale) * pixel)
             let startX = max(0, size.width - CGFloat(visibleData.count) * slotWidth)
 
+            var idleBarsPath = Path()
+            var activeBarsPath = Path()
+
             for (index, value) in visibleData.enumerated() {
-                let rawX = startX + CGFloat(index) * slotWidth + (slotWidth - barWidth) / 2.0
-                let barX = round(rawX * scale) * pixel
+                let rawX = startX + (CGFloat(index) + 0.5) * slotWidth
+                let barX = (floor(rawX * scale) + 0.5) * pixel
 
                 let normalized = max(0.0, min(1.0, value / maxVal))
                 let rawHeight = CGFloat(normalized) * usableHeight
-                // Minimum 1-pixel tick so idle values create visible comb teeth
+                // Minimum 1-pixel tick so idle telemetry creates visible comb teeth
                 let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
                 let barY = baselineY - barHeight
 
-                let barRect = CGRect(x: barX, y: barY, width: barWidth, height: barHeight)
-                context.fill(Path(barRect), with: .color(color))
+                if normalized < 0.05 {
+                    idleBarsPath.move(to: CGPoint(x: barX, y: baselineY))
+                    idleBarsPath.addLine(to: CGPoint(x: barX, y: barY))
+                } else {
+                    activeBarsPath.move(to: CGPoint(x: barX, y: baselineY))
+                    activeBarsPath.addLine(to: CGPoint(x: barX, y: barY))
+                }
+            }
+
+            let strokeStyle = StrokeStyle(lineWidth: pixel, lineCap: .butt)
+            if !idleBarsPath.isEmpty {
+                context.stroke(idleBarsPath, with: .color(color.opacity(0.38)), style: strokeStyle)
+            }
+            if !activeBarsPath.isEmpty {
+                context.stroke(activeBarsPath, with: .color(color.opacity(0.85)), style: strokeStyle)
             }
         }
         .frame(height: 38)
