@@ -16,44 +16,31 @@ public struct HealthStatusIndicator: View {
     
     public let options: [Option]
     public let selectedIndex: Int
+    public let alignment: HorizontalAlignment
     
-    public init(options: [Option], selectedIndex: Int) {
+    public init(options: [Option], selectedIndex: Int, alignment: HorizontalAlignment = .leading) {
         self.options = options
         self.selectedIndex = selectedIndex
+        self.alignment = alignment
     }
     
     public var body: some View {
-        HStack(spacing: 2) {
+        VStack(alignment: alignment, spacing: 1.5) {
             ForEach(options) { opt in
                 let isSelected = opt.id == selectedIndex
                 Text(opt.label)
-                    .font(.system(size: 8.5, weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? opt.color : Color.primary.opacity(0.38))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
-                            .fill(isSelected ? opt.color.opacity(0.14) : Color.clear)
-                    )
+                    .font(.system(size: 8, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? opt.color : Color.primary.opacity(0.30))
             }
         }
-        .padding(2)
-        .background(
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-        )
-        .animation(.easeInOut(duration: 0.2), value: selectedIndex)
+        .animation(.easeInOut(duration: 0.18), value: selectedIndex)
     }
 }
 
 // MARK: - Convenience Initializers for Domain Health States
 
 extension HealthStatusIndicator {
-    public static func cpu(status: CPUHealthStatus) -> HealthStatusIndicator {
+    public static func cpu(status: CPUHealthStatus, alignment: HorizontalAlignment = .leading) -> HealthStatusIndicator {
         let options = [
             Option(id: 0, label: "Normal", color: .green),
             Option(id: 1, label: "Heavy", color: .yellow),
@@ -65,10 +52,10 @@ extension HealthStatusIndicator {
         case .heavy: index = 1
         case .critical: index = 2
         }
-        return HealthStatusIndicator(options: options, selectedIndex: index)
+        return HealthStatusIndicator(options: options, selectedIndex: index, alignment: alignment)
     }
     
-    public static func memory(status: MemoryHealthStatus) -> HealthStatusIndicator {
+    public static func memory(status: MemoryHealthStatus, alignment: HorizontalAlignment = .leading) -> HealthStatusIndicator {
         let options = [
             Option(id: 0, label: "Normal", color: .green),
             Option(id: 1, label: "Heavy", color: .yellow),
@@ -80,10 +67,10 @@ extension HealthStatusIndicator {
         case .heavy: index = 1
         case .critical: index = 2
         }
-        return HealthStatusIndicator(options: options, selectedIndex: index)
+        return HealthStatusIndicator(options: options, selectedIndex: index, alignment: alignment)
     }
     
-    public static func network(status: NetworkHealthStatus) -> HealthStatusIndicator {
+    public static func network(status: NetworkHealthStatus, alignment: HorizontalAlignment = .trailing) -> HealthStatusIndicator {
         let options = [
             Option(id: 0, label: "Stable", color: .green),
             Option(id: 1, label: "Degraded", color: .yellow),
@@ -95,7 +82,7 @@ extension HealthStatusIndicator {
         case .checking, .degraded: index = 1
         case .poor, .offline: index = 2
         }
-        return HealthStatusIndicator(options: options, selectedIndex: index)
+        return HealthStatusIndicator(options: options, selectedIndex: index, alignment: alignment)
     }
 }
 
