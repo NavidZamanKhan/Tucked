@@ -6,7 +6,7 @@ public struct SparklineView: View {
     public let maxScale: Double?
     public let color: Color
     public let capacity: Int
-    
+
     public init(
         data: [Double],
         maxScale: Double? = 100.0,
@@ -18,105 +18,113 @@ public struct SparklineView: View {
         self.color = color
         self.capacity = capacity
     }
-    
+
     public var body: some View {
-        GeometryReader { geometry in
-            let size = geometry.size
-            let baselineY = size.height - 1.0
+        Canvas { context, size in
+            let scale = context.environment.displayScale
+            let pixel = scale > 0 ? (1.0 / scale) : 1.0
+
+            // Helper to center a 1-pixel stroke squarely on physical pixel boundary
+            func alignStroke(_ val: CGFloat) -> CGFloat {
+                return (floor(val * scale) + 0.5) * pixel
+            }
+
+            // Helper to snap vertex to physical pixel grid
+            func snapCoord(_ val: CGFloat) -> CGFloat {
+                return round(val * scale) * pixel
+            }
+
+            let baselineY = alignStroke(size.height - 1.5 * pixel)
+            let midGuideY = alignStroke(size.height / 2.0)
+
+            // 50% Mid Guide - fine dotted 1-pixel graticule
+            var midGuidePath = Path()
+            midGuidePath.move(to: CGPoint(x: 0, y: midGuideY))
+            midGuidePath.addLine(to: CGPoint(x: size.width, y: midGuideY))
+            context.stroke(
+                midGuidePath,
+                with: .color(Color.primary.opacity(0.06)),
+                style: StrokeStyle(lineWidth: pixel, lineCap: .square, dash: [pixel, pixel * 3])
+            )
+
+            // Baseline - crisp 1-pixel datum rule
+            var baselinePath = Path()
+            baselinePath.move(to: CGPoint(x: 0, y: baselineY))
+            baselinePath.addLine(to: CGPoint(x: size.width, y: baselineY))
+            context.stroke(
+                baselinePath,
+                with: .color(Color.primary.opacity(0.12)),
+                style: StrokeStyle(lineWidth: pixel, lineCap: .butt)
+            )
+
             let effectiveCapacity = max(capacity, 2)
             let visibleData = Array(data.suffix(effectiveCapacity))
-            let points = calculatePoints(data: visibleData, in: size, baselineY: baselineY)
-            
-            ZStack {
-                // Card background matching native macOS dark panel aesthetic
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.primary.opacity(0.04))
-                
-                // Subtle 50% guide line
-                Path { path in
-                    let midGuideY = size.height / 2.0
-                    path.move(to: CGPoint(x: 0, y: midGuideY))
-                    path.addLine(to: CGPoint(x: size.width, y: midGuideY))
+            guard !visibleData.isEmpty else { return }
+
+            let maxVal: Double
+            if let explicitMax = maxScale, explicitMax > 0 {
+                maxVal = explicitMax
+            } else {
+                let peak = visibleData.max() ?? 0.0
+                if peak <= 25.0 {
+                    maxVal = 25.0
+                } else if peak <= 50.0 {
+                    maxVal = 50.0
+                } else {
+                    maxVal = 100.0
                 }
-                .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
-                
-                // Bottom baseline
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: baselineY))
-                    path.addLine(to: CGPoint(x: size.width, y: baselineY))
-                }
-                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-                
-                if !points.isEmpty {
-                    let first = points[0]
-                    let last = points[points.count - 1]
-                    
-                    // Background Area Fill - subtle whisper gradient for high trace contrast
-                    Path { path in
-                        path.move(to: CGPoint(x: first.x, y: baselineY))
-                        for pt in points {
-                            path.addLine(to: pt)
-                        }
-                        path.addLine(to: CGPoint(x: last.x, y: baselineY))
-                        path.closeSubpath()
-                    }
-                    .fill(
-                        LinearGradient(
-                            colors: [color.opacity(0.12), color.opacity(0.01)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    
-                    // Foreground Stroke Line - needle-sharp hairline miter trace
-                    Path { path in
-                        if points.count == 1 {
-                            path.move(to: CGPoint(x: 0, y: first.y))
-                            path.addLine(to: CGPoint(x: size.width, y: first.y))
-                        } else {
-                            path.move(to: first)
-                            for pt in points.dropFirst() {
-                                path.addLine(to: pt)
-                            }
-                        }
-                    }
-                    .stroke(
-                        color.opacity(0.95),
-                        style: StrokeStyle(lineWidth: 1.0, lineCap: .butt, lineJoin: .miter, miterLimit: 10.0)
-                    )
-                }
-                
-                // Outer Card hairline border
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 5))
+
+            let usableHeight = max(baselineY - (3.0 * pixel), 1.0)
+            let totalSlots = CGFloat(effectiveCapacity - 1)
+            let stepX = size.width / totalSlots
+            let startX = max(0, size.width - CGFloat(visibleData.count - 1) * stepX)
+
+            var points = [CGPoint]()
+            points.reserveCapacity(visibleData.count)
+
+            for (index, value) in visibleData.enumerated() {
+                let rawX = startX + CGFloat(index) * stepX
+                let normalizedY = max(0.0, min(1.0, value / maxVal))
+                let rawY = baselineY - (CGFloat(normalizedY) * usableHeight)
+                points.append(CGPoint(x: snapCoord(rawX), y: snapCoord(rawY)))
+            }
+
+            var tracePath = Path()
+            if visibleData.count == 1 {
+                let y = alignStroke(baselineY - (CGFloat(max(0.0, min(1.0, visibleData[0] / maxVal))) * usableHeight))
+                tracePath.move(to: CGPoint(x: startX, y: y))
+                tracePath.addLine(to: CGPoint(x: size.width, y: y))
+            } else if let first = points.first {
+                tracePath.move(to: first)
+                for pt in points.dropFirst() {
+                    tracePath.addLine(to: pt)
+                }
+            }
+
+            // Precision hairline trace (1 physical device pixel)
+            let traceStyle = StrokeStyle(
+                lineWidth: pixel,
+                lineCap: .butt,
+                lineJoin: .miter,
+                miterLimit: 10.0
+            )
+            context.stroke(tracePath, with: .color(color), style: traceStyle)
         }
         .frame(height: 38)
-    }
-    
-    private func calculatePoints(data: [Double], in size: CGSize, baselineY: CGFloat) -> [CGPoint] {
-        guard !data.isEmpty else { return [] }
-        
-        let maxVal: Double
-        if let explicitMax = maxScale, explicitMax > 0 {
-            maxVal = explicitMax
-        } else {
-            let actualMax = data.max() ?? 25.0
-            maxVal = max(actualMax, 25.0)
-        }
-        
-        let totalSlots = CGFloat(max(capacity, 2) - 1)
-        let stepX = size.width / totalSlots
-        let usableHeight = size.height - 4.0
-        let startX = max(0, size.width - CGFloat(data.count - 1) * stepX)
-        
-        return data.enumerated().map { index, value in
-            let x = startX + CGFloat(index) * stepX
-            let normalizedY = max(0.0, min(1.0, value / maxVal))
-            let y = baselineY - (CGFloat(normalizedY) * usableHeight)
-            return CGPoint(x: x, y: y)
-        }
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.primary.opacity(0.03))
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.black.opacity(0.15))
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
 
