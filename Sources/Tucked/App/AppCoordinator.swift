@@ -60,6 +60,10 @@ public final class AppCoordinator {
                 self.shelfModel.updateDiagnosticSnapshot(diagnostic)
             }
         }
+        
+        shelfModel.onResetNetworkTotals = { [weak self] in
+            self?.monitoringCoordinator.resetNetworkTotals()
+        }
     }
     
     private func setupWorkspaceNotifications() {

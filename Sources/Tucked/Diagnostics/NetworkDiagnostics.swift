@@ -1,7 +1,9 @@
 import Foundation
 import Network
+import Darwin
 
-/// Diagnostics service measuring connection latency and jitter via TCP setup to public resolver.
+/// Diagnostics service measuring connection latency and jitter via TCP setup to public resolver,
+/// as well as local IP, public IP, and active internet connectivity.
 public final class NetworkDiagnosticsService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "ai.mpiv.Tucked.NetworkDiagnostics", qos: .utility)
     private var activeConnection: NWConnection?
@@ -11,6 +13,11 @@ public final class NetworkDiagnosticsService: @unchecked Sendable {
     private var isCancelled: Bool = false
     private var isCompleted: Bool = false
     
+    // Cached public IP state (shelf diagnostic mode only)
+    private var cachedPublicIP: String?
+    private var publicIPTask: URLSessionDataTask?
+    private var lastPublicIPFetchTime: Date?
+    
     public init() {}
     
     public func reset() {
@@ -19,10 +26,100 @@ public final class NetworkDiagnosticsService: @unchecked Sendable {
         isCancelled = true
         activeConnection?.cancel()
         activeConnection = nil
+        publicIPTask?.cancel()
+        publicIPTask = nil
         latencyHistory.removeAll()
     }
     
-    public func probe(completion: @escaping @Sendable (Double?, Double?, NetworkHealthStatus) -> Void) {
+    // MARK: - Local IP Resolution (Native Darwin getifaddrs)
+    
+    public static func resolveLocalIP() -> String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else { return nil }
+        defer { freeifaddrs(ifaddr) }
+        
+        var primaryIP: String?
+        var fallbackIP: String?
+        
+        for ptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
+            let flags = Int32(ptr.pointee.ifa_flags)
+            guard (flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING),
+                  (flags & IFF_LOOPBACK) == 0 else {
+                continue
+            }
+            
+            guard let sa = ptr.pointee.ifa_addr else { continue }
+            if sa.pointee.sa_family == UInt8(AF_INET) {
+                var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                if getnameinfo(sa, socklen_t(sa.pointee.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST) == 0 {
+                    let ip = hostname.withUnsafeBufferPointer { ptr in
+                        ptr.baseAddress.map { String(cString: $0) }
+                    } ?? ""
+                    let name = String(cString: ptr.pointee.ifa_name)
+                    if !ip.hasPrefix("169.254.") {
+                        if name == "en0" {
+                            primaryIP = ip
+                            break
+                        } else if primaryIP == nil && name.hasPrefix("en") {
+                            primaryIP = ip
+                        } else if fallbackIP == nil {
+                            fallbackIP = ip
+                        }
+                    }
+                }
+            }
+        }
+        return primaryIP ?? fallbackIP
+    }
+    
+    // MARK: - Public IP Resolution (Diagnostic Mode Only)
+    
+    public func fetchPublicIP(completion: @escaping @Sendable (String?) -> Void) {
+        lock.lock()
+        if let cached = cachedPublicIP, let lastTime = lastPublicIPFetchTime, Date().timeIntervalSince(lastTime) < 300 {
+            let ip = cached
+            lock.unlock()
+            completion(ip)
+            return
+        }
+        publicIPTask?.cancel()
+        
+        guard let url = URL(string: "https://api.ipify.org") else {
+            lock.unlock()
+            completion(nil)
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 3.0
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 3.0
+        config.timeoutIntervalForResource = 3.0
+        let session = URLSession(configuration: config)
+        
+        let task = session.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            
+            if let data = data, let ip = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !ip.isEmpty {
+                self.cachedPublicIP = ip
+                self.lastPublicIPFetchTime = Date()
+                completion(ip)
+            } else {
+                completion(self.cachedPublicIP)
+            }
+        }
+        self.publicIPTask = task
+        lock.unlock()
+        task.resume()
+    }
+    
+    // MARK: - Latency & Reachability Probe
+    
+    public func probe(completion: @escaping @Sendable (Double?, Double?, NetworkHealthStatus, Bool) -> Void) {
         lock.lock()
         isCancelled = false
         isCompleted = false
@@ -51,7 +148,7 @@ public final class NetworkDiagnosticsService: @unchecked Sendable {
             self.activeConnection = nil
             self.lock.unlock()
             
-            completion(nil, nil, .poor)
+            completion(nil, nil, .poor, false)
         }
         
         connection.stateUpdateHandler = { [weak self, weak connection] state in
@@ -87,7 +184,7 @@ public final class NetworkDiagnosticsService: @unchecked Sendable {
                 self.lock.unlock()
                 
                 let (jitter, health) = self.calculateJitterAndHealth(history: currentHistory, latestLatency: elapsedMs)
-                completion(elapsedMs, jitter, health)
+                completion(elapsedMs, jitter, health, true)
                 
             case .failed:
                 self.lock.lock()
@@ -100,7 +197,7 @@ public final class NetworkDiagnosticsService: @unchecked Sendable {
                 self.lock.unlock()
                 
                 connection.cancel()
-                completion(nil, nil, .poor)
+                completion(nil, nil, .poor, false)
                 
             default:
                 break

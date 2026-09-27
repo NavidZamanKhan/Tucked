@@ -194,6 +194,24 @@ struct CalculationFixturesTests {
         )
         #expect(snapshot.freeBytes == 0)
     }
+    
+    @Test func testMemorySnapshotBreakdownFixture() {
+        let snapshot = MemoryUsageSnapshot(
+            usedBytes: 12_000_000_000,
+            totalPhysicalBytes: 16_000_000_000,
+            swapBytes: 1_000_000_000,
+            compressedBytes: 2_000_000_000,
+            appBytes: 6_000_000_000,
+            wiredBytes: 4_000_000_000,
+            usedPercentage: 75.0,
+            status: .normal
+        )
+        #expect(snapshot.appBytes == 6_000_000_000)
+        #expect(snapshot.wiredBytes == 4_000_000_000)
+        #expect(snapshot.compressedBytes == 2_000_000_000)
+        #expect(snapshot.freeBytes == 4_000_000_000)
+        #expect(snapshot.swapBytes == 1_000_000_000)
+    }
 }
 
 @Suite("ThermalProvider Tests")
@@ -335,4 +353,81 @@ struct MachineInfoTests {
         #expect(!MachineInfo.uptimeString.isEmpty)
     }
 }
+
+@Suite("NetworkSampler and Totals Tests")
+struct NetworkSamplerTests {
+    @Test func testNetworkSnapshotTotals() {
+        let snapshot = NetworkUsageSnapshot(
+            rxBytesPerSecond: 1024,
+            txBytesPerSecond: 2048,
+            status: .stable,
+            totalRxBytes: 5_000_000,
+            totalTxBytes: 3_000_000
+        )
+        #expect(snapshot.totalRxBytes == 5_000_000)
+        #expect(snapshot.totalTxBytes == 3_000_000)
+        #expect(snapshot.rxBytesPerSecond == 1024)
+        #expect(snapshot.txBytesPerSecond == 2048)
+    }
+    
+    @Test func testNetworkSamplerResetTotals() {
+        let sampler = NetworkSampler()
+        let sample1 = sampler.sample()
+        #expect(sample1.totalRxBytes == 0)
+        #expect(sample1.totalTxBytes == 0)
+        
+        sampler.resetTotals()
+        let sample2 = sampler.sample()
+        #expect(sample2.totalRxBytes == 0)
+        #expect(sample2.totalTxBytes == 0)
+    }
+}
+
+@Suite("NetworkDiagnostics Tests")
+struct NetworkDiagnosticsTests {
+    @Test func testResolveLocalIP() {
+        let ip = NetworkDiagnosticsService.resolveLocalIP()
+        if let localIP = ip {
+            #expect(!localIP.isEmpty)
+            #expect(!localIP.hasPrefix("127."))
+            #expect(!localIP.hasPrefix("169.254."))
+        }
+    }
+    
+    @Test func testNetworkDiagnosticsSnapshot() {
+        let snapshot = NetworkDiagnosticsSnapshot(
+            latencyMs: 15.5,
+            jitterMs: 2.1,
+            wifiRSSI: -52,
+            wifiLinkRateMbps: 1200,
+            interfaceName: "en0",
+            localIP: "192.168.1.50",
+            publicIP: "1.2.3.4",
+            isInternetUp: true,
+            isMeasuring: false
+        )
+        #expect(snapshot.localIP == "192.168.1.50")
+        #expect(snapshot.publicIP == "1.2.3.4")
+        #expect(snapshot.isInternetUp == true)
+        #expect(snapshot.interfaceName == "en0")
+    }
+}
+
+@Suite("ShelfModel Action Tests")
+struct ShelfModelActionTests {
+    private final class ResetBox: @unchecked Sendable {
+        var called = false
+    }
+    
+    @Test @MainActor func testResetNetworkTotalsCallback() {
+        let model = ShelfModel()
+        let box = ResetBox()
+        model.onResetNetworkTotals = {
+            box.called = true
+        }
+        model.resetNetworkTotals()
+        #expect(box.called == true)
+    }
+}
+
 

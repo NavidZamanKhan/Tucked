@@ -10,6 +10,8 @@ public final class NetworkSampler: @unchecked Sendable {
     
     private var baselines: [String: InterfaceBaseline] = [:]
     private var previousTimestamp: Date?
+    private var cumulativeRxBytes: UInt64 = 0
+    private var cumulativeTxBytes: UInt64 = 0
     private let lock = NSLock()
     
     public init() {}
@@ -19,6 +21,13 @@ public final class NetworkSampler: @unchecked Sendable {
         defer { lock.unlock() }
         baselines.removeAll()
         previousTimestamp = nil
+    }
+    
+    public func resetTotals() {
+        lock.lock()
+        defer { lock.unlock() }
+        cumulativeRxBytes = 0
+        cumulativeTxBytes = 0
     }
     
     public func sample() -> NetworkUsageSnapshot {
@@ -31,12 +40,24 @@ public final class NetworkSampler: @unchecked Sendable {
         guard let prevTime = previousTimestamp, !baselines.isEmpty else {
             baselines = currentCounters
             previousTimestamp = now
-            return NetworkUsageSnapshot(rxBytesPerSecond: 0, txBytesPerSecond: 0, status: .stable)
+            return NetworkUsageSnapshot(
+                rxBytesPerSecond: 0,
+                txBytesPerSecond: 0,
+                status: .stable,
+                totalRxBytes: cumulativeRxBytes,
+                totalTxBytes: cumulativeTxBytes
+            )
         }
         
         let elapsed = now.timeIntervalSince(prevTime)
         guard elapsed > 0.05 else {
-            return NetworkUsageSnapshot(rxBytesPerSecond: 0, txBytesPerSecond: 0, status: .stable)
+            return NetworkUsageSnapshot(
+                rxBytesPerSecond: 0,
+                txBytesPerSecond: 0,
+                status: .stable,
+                totalRxBytes: cumulativeRxBytes,
+                totalTxBytes: cumulativeTxBytes
+            )
         }
         
         var totalRxDelta: UInt64 = 0
@@ -52,6 +73,9 @@ public final class NetworkSampler: @unchecked Sendable {
             }
         }
         
+        cumulativeRxBytes &+= totalRxDelta
+        cumulativeTxBytes &+= totalTxDelta
+        
         baselines = currentCounters
         previousTimestamp = now
         
@@ -61,7 +85,9 @@ public final class NetworkSampler: @unchecked Sendable {
         return NetworkUsageSnapshot(
             rxBytesPerSecond: rxRate,
             txBytesPerSecond: txRate,
-            status: .stable
+            status: .stable,
+            totalRxBytes: cumulativeRxBytes,
+            totalTxBytes: cumulativeTxBytes
         )
     }
     

@@ -95,13 +95,11 @@ public struct OverviewView: View {
                     SparklineView(data: model.memoryHistory, color: .purple)
                     
                     VStack(spacing: 4) {
-                        MetricStatRow(label: "Used", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.usedBytes))
+                        MetricStatRow(label: "App", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.appBytes))
+                        MetricStatRow(label: "Wired", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.wiredBytes))
+                        MetricStatRow(label: "Compressed", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.compressedBytes))
                         MetricStatRow(label: "Free", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.freeBytes))
                         MetricStatRow(label: "Swap", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.swapBytes))
-                        MetricStatRow(label: "Compressed", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.compressedBytes))
-                        
-                        // Vertical spacing placeholder to balance against CPU Temp & Fan rows
-                        Color.clear.frame(height: 16)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -155,14 +153,53 @@ public struct OverviewView: View {
                 
                 HStack(spacing: 24) {
                     VStack(spacing: 4) {
-                        MetricStatRow(label: "Latency", value: formattedLatency)
-                        MetricStatRow(label: "Signal", value: formattedSignal)
+                        HStack {
+                            Text("Internet")
+                                .font(.system(size: 12))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(model.diagnosticSnapshot.networkDiagnostics.isInternetUp ? Color.green : Color.red)
+                                    .frame(width: 7, height: 7)
+                                Text(model.diagnosticSnapshot.networkDiagnostics.isInternetUp ? "Connected" : "Disconnected")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        MetricStatRow(label: "Local IP", value: model.diagnosticSnapshot.networkDiagnostics.localIP ?? "-")
+                        MetricStatRow(label: "Public IP", value: model.diagnosticSnapshot.networkDiagnostics.publicIP ?? (model.diagnosticSnapshot.networkDiagnostics.isMeasuring ? "Loading…" : "-"))
+                        MetricStatRow(label: "Total In", value: TuckedFormatter.formatBytes(model.systemSnapshot.network.totalRxBytes))
+                        HStack {
+                            Text("Total Out")
+                                .font(.system(size: 12))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            HStack(spacing: 6) {
+                                Text(TuckedFormatter.formatBytes(model.systemSnapshot.network.totalTxBytes))
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundColor(.primary)
+                                Button(action: {
+                                    model.resetNetworkTotals()
+                                }) {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help("Reset network totals")
+                                .accessibilityLabel("Reset network totals")
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     
                     VStack(spacing: 4) {
+                        MetricStatRow(label: "Latency", value: formattedLatency)
                         MetricStatRow(label: "Jitter", value: formattedJitter)
+                        MetricStatRow(label: "Signal", value: formattedSignal)
                         MetricStatRow(label: "Link", value: formattedLink)
+                        MetricStatRow(label: "Interface", value: formattedInterface)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -290,6 +327,13 @@ public struct OverviewView: View {
             }
         }
         return "-"
+    }
+    
+    private var formattedInterface: String {
+        if let name = model.diagnosticSnapshot.networkDiagnostics.interfaceName {
+            return model.diagnosticSnapshot.networkDiagnostics.wifiRSSI != nil ? "Wi-Fi (\(name))" : name
+        }
+        return model.diagnosticSnapshot.networkDiagnostics.localIP != nil ? "en0" : "-"
     }
     
     private func statusColor(for status: CPUHealthStatus) -> Color {

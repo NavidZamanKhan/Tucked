@@ -30,6 +30,8 @@ public final class MemorySampler: @unchecked Sendable {
                 totalPhysicalBytes: physicalMemoryBytes,
                 swapBytes: 0,
                 compressedBytes: 0,
+                appBytes: 0,
+                wiredBytes: 0,
                 usedPercentage: 0,
                 status: pressureStatus
             )
@@ -48,7 +50,9 @@ public final class MemorySampler: @unchecked Sendable {
         let usedPages = max(0, usedPagesRaw)
         let usedBytes = UInt64(usedPages) * pageSize
         
+        let wiredBytes = UInt64(max(0, wired)) * pageSize
         let compressedBytes = UInt64(max(0, compressor)) * pageSize
+        let appBytes = usedBytes > (wiredBytes + compressedBytes) ? (usedBytes - wiredBytes - compressedBytes) : 0
         let swapBytes = readSwapUsedBytes()
         
         let percentage = physicalMemoryBytes > 0
@@ -60,6 +64,8 @@ public final class MemorySampler: @unchecked Sendable {
             totalPhysicalBytes: physicalMemoryBytes,
             swapBytes: swapBytes,
             compressedBytes: compressedBytes,
+            appBytes: appBytes,
+            wiredBytes: wiredBytes,
             usedPercentage: percentage,
             status: pressureStatus
         )

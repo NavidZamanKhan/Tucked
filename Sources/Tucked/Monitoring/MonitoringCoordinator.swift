@@ -66,6 +66,13 @@ public final class MonitoringCoordinator: @unchecked Sendable {
         networkDiagnostics.reset()
     }
     
+    public func resetNetworkTotals() {
+        networkSampler.resetTotals()
+        coordinatorQueue.async { [weak self] in
+            self?.tickPassive()
+        }
+    }
+    
     // MARK: - Mode Transitions
     
     public func shelfDidOpen() {
@@ -82,10 +89,11 @@ public final class MonitoringCoordinator: @unchecked Sendable {
             guard let self = self else { return }
             _ = self.processSampler.sample()
             
-            // Immediate fast thermal and Wi-Fi reads
+            // Immediate fast thermal, Wi-Fi, and IP reads
             let initialThermal = self.thermalProvider.sample()
             self.lastThermalSnapshot = initialThermal
             let wifiResult = self.wifiReader.read()
+            let localIP = NetworkDiagnosticsService.resolveLocalIP()
             
             self.lastDiagnosticsSnapshot = NetworkDiagnosticsSnapshot(
                 latencyMs: self.lastDiagnosticsSnapshot.latencyMs,
@@ -93,6 +101,9 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                 wifiRSSI: wifiResult.rssi,
                 wifiLinkRateMbps: wifiResult.linkRateMbps,
                 interfaceName: wifiResult.interfaceName,
+                localIP: localIP,
+                publicIP: self.lastDiagnosticsSnapshot.publicIP,
+                isInternetUp: self.lastDiagnosticsSnapshot.isInternetUp,
                 isMeasuring: true
             )
             
@@ -106,7 +117,7 @@ public final class MonitoringCoordinator: @unchecked Sendable {
             )
             
             // Immediate network diagnostics probe
-            self.networkDiagnostics.probe { [weak self] latency, jitter, health in
+            self.networkDiagnostics.probe { [weak self] latency, jitter, health, isUp in
                 guard let self = self else { return }
                 self.lock.lock()
                 guard self.currentMode == .diagnostic && self.diagnosticGeneration == gen else {
@@ -121,6 +132,9 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                     wifiRSSI: wifiResult.rssi ?? self.lastDiagnosticsSnapshot.wifiRSSI,
                     wifiLinkRateMbps: wifiResult.linkRateMbps ?? self.lastDiagnosticsSnapshot.wifiLinkRateMbps,
                     interfaceName: wifiResult.interfaceName ?? self.lastDiagnosticsSnapshot.interfaceName,
+                    localIP: localIP ?? self.lastDiagnosticsSnapshot.localIP,
+                    publicIP: self.lastDiagnosticsSnapshot.publicIP,
+                    isInternetUp: isUp,
                     isMeasuring: false
                 )
                 self.lastDiagnosticsSnapshot = diag
@@ -132,6 +146,48 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                     diagnostics: diag,
                     isMeasuringCPU: false
                 )
+            }
+            
+            // Asynchronously fetch public IP (shelf diagnostic mode only)
+            self.networkDiagnostics.fetchPublicIP { [weak self] publicIP in
+                guard let self = self, let publicIP = publicIP else { return }
+                self.lock.lock()
+                guard self.currentMode == .diagnostic && self.diagnosticGeneration == gen else {
+                    self.lock.unlock()
+                    return
+                }
+                self.lock.unlock()
+                
+                self.coordinatorQueue.async { [weak self] in
+                    guard let self = self else { return }
+                    self.lock.lock()
+                    guard self.currentMode == .diagnostic && self.diagnosticGeneration == gen else {
+                        self.lock.unlock()
+                        return
+                    }
+                    self.lock.unlock()
+                    
+                    let diag = NetworkDiagnosticsSnapshot(
+                        latencyMs: self.lastDiagnosticsSnapshot.latencyMs,
+                        jitterMs: self.lastDiagnosticsSnapshot.jitterMs,
+                        wifiRSSI: self.lastDiagnosticsSnapshot.wifiRSSI,
+                        wifiLinkRateMbps: self.lastDiagnosticsSnapshot.wifiLinkRateMbps,
+                        interfaceName: self.lastDiagnosticsSnapshot.interfaceName,
+                        localIP: self.lastDiagnosticsSnapshot.localIP,
+                        publicIP: publicIP,
+                        isInternetUp: self.lastDiagnosticsSnapshot.isInternetUp,
+                        isMeasuring: self.lastDiagnosticsSnapshot.isMeasuring
+                    )
+                    self.lastDiagnosticsSnapshot = diag
+                    
+                    self.publishDiagnosticSnapshot(
+                        thermal: self.lastThermalSnapshot,
+                        topCPU: self.lastTopCPU,
+                        topMemory: self.lastTopMemory,
+                        diagnostics: diag,
+                        isMeasuringCPU: false
+                    )
+                }
             }
             
             // T1 process sample after ~300ms
@@ -265,7 +321,7 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                 self.lastThermalSnapshot = currentThermal
                 let wifiResult = self.wifiReader.read()
                 
-                self.networkDiagnostics.probe { [weak self] latency, jitter, health in
+                self.networkDiagnostics.probe { [weak self] latency, jitter, health, isUp in
                     guard let self = self else { return }
                     self.lock.lock()
                     guard self.currentMode == .diagnostic && self.diagnosticGeneration == generation else {
@@ -274,12 +330,16 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                     }
                     self.lock.unlock()
                     
+                    let currentLocalIP = NetworkDiagnosticsService.resolveLocalIP()
                     let diag = NetworkDiagnosticsSnapshot(
                         latencyMs: latency ?? self.lastDiagnosticsSnapshot.latencyMs,
                         jitterMs: jitter ?? self.lastDiagnosticsSnapshot.jitterMs,
                         wifiRSSI: wifiResult.rssi ?? self.lastDiagnosticsSnapshot.wifiRSSI,
                         wifiLinkRateMbps: wifiResult.linkRateMbps ?? self.lastDiagnosticsSnapshot.wifiLinkRateMbps,
                         interfaceName: wifiResult.interfaceName ?? self.lastDiagnosticsSnapshot.interfaceName,
+                        localIP: currentLocalIP ?? self.lastDiagnosticsSnapshot.localIP,
+                        publicIP: self.lastDiagnosticsSnapshot.publicIP,
+                        isInternetUp: isUp,
                         isMeasuring: false
                     )
                     self.lastDiagnosticsSnapshot = diag

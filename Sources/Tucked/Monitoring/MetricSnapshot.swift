@@ -65,6 +65,8 @@ public struct MemoryUsageSnapshot: Sendable {
     public let totalPhysicalBytes: UInt64
     public let swapBytes: UInt64
     public let compressedBytes: UInt64
+    public let appBytes: UInt64
+    public let wiredBytes: UInt64
     public let usedPercentage: Double
     public let status: MemoryHealthStatus
     
@@ -77,6 +79,8 @@ public struct MemoryUsageSnapshot: Sendable {
         totalPhysicalBytes: UInt64 = 0,
         swapBytes: UInt64 = 0,
         compressedBytes: UInt64 = 0,
+        appBytes: UInt64 = 0,
+        wiredBytes: UInt64 = 0,
         usedPercentage: Double = 0,
         status: MemoryHealthStatus = .normal
     ) {
@@ -84,6 +88,8 @@ public struct MemoryUsageSnapshot: Sendable {
         self.totalPhysicalBytes = totalPhysicalBytes
         self.swapBytes = swapBytes
         self.compressedBytes = compressedBytes
+        self.appBytes = appBytes
+        self.wiredBytes = wiredBytes
         self.usedPercentage = usedPercentage
         self.status = status
     }
@@ -93,15 +99,21 @@ public struct NetworkUsageSnapshot: Sendable {
     public let rxBytesPerSecond: Double
     public let txBytesPerSecond: Double
     public let status: NetworkHealthStatus
+    public let totalRxBytes: UInt64
+    public let totalTxBytes: UInt64
     
     public init(
         rxBytesPerSecond: Double = 0,
         txBytesPerSecond: Double = 0,
-        status: NetworkHealthStatus = .stable
+        status: NetworkHealthStatus = .stable,
+        totalRxBytes: UInt64 = 0,
+        totalTxBytes: UInt64 = 0
     ) {
         self.rxBytesPerSecond = rxBytesPerSecond
         self.txBytesPerSecond = txBytesPerSecond
         self.status = status
+        self.totalRxBytes = totalRxBytes
+        self.totalTxBytes = totalTxBytes
     }
 }
 
@@ -159,6 +171,9 @@ public struct NetworkDiagnosticsSnapshot: Sendable {
     public let wifiRSSI: Int?
     public let wifiLinkRateMbps: Double?
     public let interfaceName: String?
+    public let localIP: String?
+    public let publicIP: String?
+    public let isInternetUp: Bool
     public let isMeasuring: Bool
     
     public init(
@@ -167,6 +182,9 @@ public struct NetworkDiagnosticsSnapshot: Sendable {
         wifiRSSI: Int? = nil,
         wifiLinkRateMbps: Double? = nil,
         interfaceName: String? = nil,
+        localIP: String? = nil,
+        publicIP: String? = nil,
+        isInternetUp: Bool = false,
         isMeasuring: Bool = false
     ) {
         self.latencyMs = latencyMs
@@ -174,6 +192,9 @@ public struct NetworkDiagnosticsSnapshot: Sendable {
         self.wifiRSSI = wifiRSSI
         self.wifiLinkRateMbps = wifiLinkRateMbps
         self.interfaceName = interfaceName
+        self.localIP = localIP
+        self.publicIP = publicIP
+        self.isInternetUp = isInternetUp
         self.isMeasuring = isMeasuring
     }
 }

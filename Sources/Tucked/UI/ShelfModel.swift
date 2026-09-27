@@ -25,7 +25,7 @@ public final class ShelfModel: ObservableObject {
     @Published public var isSystemDark: Bool = ShelfModel.checkSystemDark()
     
     public static func checkSystemDark() -> Bool {
-        return NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
     
     public var isEffectiveDark: Bool {
@@ -96,5 +96,12 @@ public final class ShelfModel: ObservableObject {
     
     public func navigateToOverview() {
         currentRoute = .overview
+    }
+    
+    // Callback to reset network byte counters
+    public var onResetNetworkTotals: (@Sendable () -> Void)?
+    
+    public func resetNetworkTotals() {
+        onResetNetworkTotals?()
     }
 }
