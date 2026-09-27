@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Quiet, restrained sparkline component displaying rolling history with crisp right-anchored time slots.
+/// Quiet, restrained sparkline component displaying rolling history edge-to-edge inside its card housing.
 public struct SparklineView: View {
     public let data: [Double]
     public let maxScale: Double?
@@ -22,33 +22,30 @@ public struct SparklineView: View {
     public var body: some View {
         GeometryReader { geometry in
             let size = geometry.size
-            let baselineY = size.height - 2.5
+            let baselineY = size.height - 1.0
             let effectiveCapacity = max(capacity, 2)
             let visibleData = Array(data.suffix(effectiveCapacity))
             let points = calculatePoints(data: visibleData, in: size, baselineY: baselineY)
             
-            ZStack(alignment: .topLeading) {
-                // Card background and border matching native macOS dark panel aesthetic
+            ZStack {
+                // Card background matching native macOS dark panel aesthetic
                 RoundedRectangle(cornerRadius: 5)
                     .fill(Color.primary.opacity(0.04))
-                
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
                 
                 // Subtle 50% guide line
                 Path { path in
                     let midGuideY = size.height / 2.0
-                    path.move(to: CGPoint(x: 3, y: midGuideY))
-                    path.addLine(to: CGPoint(x: size.width - 3, y: midGuideY))
+                    path.move(to: CGPoint(x: 0, y: midGuideY))
+                    path.addLine(to: CGPoint(x: size.width, y: midGuideY))
                 }
                 .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
                 
                 // Bottom baseline
                 Path { path in
-                    path.move(to: CGPoint(x: 2, y: baselineY))
-                    path.addLine(to: CGPoint(x: size.width - 2, y: baselineY))
+                    path.move(to: CGPoint(x: 0, y: baselineY))
+                    path.addLine(to: CGPoint(x: size.width, y: baselineY))
                 }
-                .stroke(Color.primary.opacity(0.10), lineWidth: 0.5)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
                 
                 if !points.isEmpty {
                     let first = points[0]
@@ -74,8 +71,8 @@ public struct SparklineView: View {
                     // Foreground Stroke Line
                     Path { path in
                         if points.count == 1 {
-                            path.move(to: CGPoint(x: first.x - 1, y: first.y))
-                            path.addLine(to: CGPoint(x: first.x + 1, y: first.y))
+                            path.move(to: CGPoint(x: 0, y: first.y))
+                            path.addLine(to: CGPoint(x: size.width, y: first.y))
                         } else {
                             path.move(to: first)
                             for pt in points.dropFirst() {
@@ -88,10 +85,14 @@ public struct SparklineView: View {
                         style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
                     )
                 }
+                
+                // Outer Card hairline border
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 5))
         }
         .frame(height: 38)
-        .clipped()
     }
     
     private func calculatePoints(data: [Double], in size: CGSize, baselineY: CGFloat) -> [CGPoint] {
@@ -105,20 +106,15 @@ public struct SparklineView: View {
             maxVal = actualMax > 0 ? actualMax : 100.0
         }
         
-        let effectiveCapacity = max(capacity, 2)
-        let usableWidth = size.width - 6.0
-        let slotWidth = usableWidth / CGFloat(effectiveCapacity - 1)
-        let rightEdgeX = size.width - 3.0
-        
-        let count = data.count
-        let startX = rightEdgeX - CGFloat(count - 1) * slotWidth
-        let usableHeight = size.height - 6.0
+        let stepX = data.count > 1 ? size.width / CGFloat(data.count - 1) : size.width
+        let usableHeight = size.height - 4.0
         
         return data.enumerated().map { index, value in
-            let x = startX + CGFloat(index) * slotWidth
+            let x = CGFloat(index) * stepX
             let normalizedY = max(0.0, min(1.0, value / maxVal))
             let y = baselineY - (CGFloat(normalizedY) * usableHeight)
             return CGPoint(x: x, y: y)
         }
     }
 }
+
