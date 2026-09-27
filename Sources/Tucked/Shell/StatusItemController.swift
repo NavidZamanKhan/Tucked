@@ -21,7 +21,7 @@ final class TuckedStatusView: NSView {
         let textColor = NSColor.labelColor
         let separatorColor = NSColor.labelColor.withAlphaComponent(0.35)
         
-        let labelFont = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
+        let labelFont = NSFont.systemFont(ofSize: 8.5, weight: .bold)
         let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .medium)
         let separatorFont = NSFont.systemFont(ofSize: 10, weight: .regular)
         let arrowFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
@@ -31,7 +31,7 @@ final class TuckedStatusView: NSView {
         
         // Slot 1: CPU (fixed at x: 8, buffer width: 48)
         let cpuAttr = NSMutableAttributedString()
-        cpuAttr.append(NSAttributedString(string: "CPU ", attributes: [.font: labelFont, .foregroundColor: textColor]))
+        cpuAttr.append(NSAttributedString(string: "CPU ", attributes: [.font: labelFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
         cpuAttr.append(NSAttributedString(string: "\(cpuPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
         cpuAttr.draw(at: NSPoint(x: 8, y: yBaseline))
         
@@ -41,7 +41,7 @@ final class TuckedStatusView: NSView {
         
         // Slot 2: RAM (fixed at x: 68, buffer width: 48)
         let ramAttr = NSMutableAttributedString()
-        ramAttr.append(NSAttributedString(string: "RAM ", attributes: [.font: labelFont, .foregroundColor: textColor]))
+        ramAttr.append(NSAttributedString(string: "RAM ", attributes: [.font: labelFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
         ramAttr.append(NSAttributedString(string: "\(ramPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
         ramAttr.draw(at: NSPoint(x: 68, y: yBaseline))
         
