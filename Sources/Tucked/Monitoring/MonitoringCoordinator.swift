@@ -21,6 +21,12 @@ public final class MonitoringCoordinator: @unchecked Sendable {
     private let wifiReader = WiFiReader()
     private let networkDiagnostics = NetworkDiagnosticsService()
     
+    // Retained diagnostic state across polling intervals
+    private var lastThermalSnapshot = ThermalSnapshot()
+    private var lastDiagnosticsSnapshot = NetworkDiagnosticsSnapshot(isMeasuring: true)
+    private var lastTopCPU: [ProcessItem] = []
+    private var lastTopMemory: [ProcessItem] = []
+    
     // Dispatch and scheduling
     private let coordinatorQueue = DispatchQueue(label: "ai.mpiv.Tucked.Coordinator", qos: .utility)
     private var passiveTimer: DispatchSourceTimer?
@@ -76,24 +82,57 @@ public final class MonitoringCoordinator: @unchecked Sendable {
             guard let self = self else { return }
             _ = self.processSampler.sample()
             
-            // Initial placeholder publication
-            self.publishDiagnosticSnapshot(
-                thermal: ThermalSnapshot(),
-                topCPU: [],
-                topMemory: [],
-                diagnostics: NetworkDiagnosticsSnapshot(isMeasuring: true),
-                isMeasuringCPU: true
+            // Immediate fast thermal and Wi-Fi reads
+            let initialThermal = self.thermalProvider.sample()
+            self.lastThermalSnapshot = initialThermal
+            let wifiResult = self.wifiReader.read()
+            
+            self.lastDiagnosticsSnapshot = NetworkDiagnosticsSnapshot(
+                latencyMs: self.lastDiagnosticsSnapshot.latencyMs,
+                jitterMs: self.lastDiagnosticsSnapshot.jitterMs,
+                wifiRSSI: wifiResult.rssi,
+                wifiLinkRateMbps: wifiResult.linkRateMbps,
+                interfaceName: wifiResult.interfaceName,
+                isMeasuring: true
             )
             
-            // Initial fast thermal read
-            let initialThermal = self.thermalProvider.sample()
+            // Initial publication
             self.publishDiagnosticSnapshot(
                 thermal: initialThermal,
-                topCPU: [],
-                topMemory: [],
-                diagnostics: NetworkDiagnosticsSnapshot(isMeasuring: true),
-                isMeasuringCPU: true
+                topCPU: self.lastTopCPU,
+                topMemory: self.lastTopMemory,
+                diagnostics: self.lastDiagnosticsSnapshot,
+                isMeasuringCPU: self.lastTopCPU.isEmpty
             )
+            
+            // Immediate network diagnostics probe
+            self.networkDiagnostics.probe { [weak self] latency, jitter, health in
+                guard let self = self else { return }
+                self.lock.lock()
+                guard self.currentMode == .diagnostic && self.diagnosticGeneration == gen else {
+                    self.lock.unlock()
+                    return
+                }
+                self.lock.unlock()
+                
+                let diag = NetworkDiagnosticsSnapshot(
+                    latencyMs: latency ?? self.lastDiagnosticsSnapshot.latencyMs,
+                    jitterMs: jitter ?? self.lastDiagnosticsSnapshot.jitterMs,
+                    wifiRSSI: wifiResult.rssi ?? self.lastDiagnosticsSnapshot.wifiRSSI,
+                    wifiLinkRateMbps: wifiResult.linkRateMbps ?? self.lastDiagnosticsSnapshot.wifiLinkRateMbps,
+                    interfaceName: wifiResult.interfaceName ?? self.lastDiagnosticsSnapshot.interfaceName,
+                    isMeasuring: false
+                )
+                self.lastDiagnosticsSnapshot = diag
+                
+                self.publishDiagnosticSnapshot(
+                    thermal: self.lastThermalSnapshot,
+                    topCPU: self.lastTopCPU,
+                    topMemory: self.lastTopMemory,
+                    diagnostics: diag,
+                    isMeasuringCPU: false
+                )
+            }
             
             // T1 process sample after ~300ms
             self.coordinatorQueue.asyncAfter(deadline: .now() + 0.3) { [weak self] in
@@ -106,11 +145,14 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                 self.lock.unlock()
                 
                 let processResult = self.processSampler.sample()
+                self.lastTopCPU = processResult.topCPU
+                self.lastTopMemory = processResult.topMemory
+                
                 self.publishDiagnosticSnapshot(
-                    thermal: initialThermal,
+                    thermal: self.lastThermalSnapshot,
                     topCPU: processResult.topCPU,
                     topMemory: processResult.topMemory,
-                    diagnostics: NetworkDiagnosticsSnapshot(isMeasuring: true),
+                    diagnostics: self.lastDiagnosticsSnapshot,
                     isMeasuringCPU: false
                 )
             }
@@ -132,6 +174,9 @@ public final class MonitoringCoordinator: @unchecked Sendable {
         processSampler.reset()
         thermalProvider.stop()
         networkDiagnostics.reset()
+        lastDiagnosticsSnapshot = NetworkDiagnosticsSnapshot(isMeasuring: true)
+        lastTopCPU.removeAll()
+        lastTopMemory.removeAll()
     }
     
     // MARK: - Sleep & Wake
@@ -212,12 +257,13 @@ public final class MonitoringCoordinator: @unchecked Sendable {
             
             // Process scan every 1 second
             let processResult = self.processSampler.sample()
+            self.lastTopCPU = processResult.topCPU
+            self.lastTopMemory = processResult.topMemory
             
             if tickCount % 2 == 0 {
                 let currentThermal = self.thermalProvider.sample()
+                self.lastThermalSnapshot = currentThermal
                 let wifiResult = self.wifiReader.read()
-                let topCPU = processResult.topCPU
-                let topMemory = processResult.topMemory
                 
                 self.networkDiagnostics.probe { [weak self] latency, jitter, health in
                     guard let self = self else { return }
@@ -229,28 +275,29 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                     self.lock.unlock()
                     
                     let diag = NetworkDiagnosticsSnapshot(
-                        latencyMs: latency,
-                        jitterMs: jitter,
-                        wifiRSSI: wifiResult.rssi,
-                        wifiLinkRateMbps: wifiResult.linkRateMbps,
-                        interfaceName: wifiResult.interfaceName,
+                        latencyMs: latency ?? self.lastDiagnosticsSnapshot.latencyMs,
+                        jitterMs: jitter ?? self.lastDiagnosticsSnapshot.jitterMs,
+                        wifiRSSI: wifiResult.rssi ?? self.lastDiagnosticsSnapshot.wifiRSSI,
+                        wifiLinkRateMbps: wifiResult.linkRateMbps ?? self.lastDiagnosticsSnapshot.wifiLinkRateMbps,
+                        interfaceName: wifiResult.interfaceName ?? self.lastDiagnosticsSnapshot.interfaceName,
                         isMeasuring: false
                     )
+                    self.lastDiagnosticsSnapshot = diag
                     
                     self.publishDiagnosticSnapshot(
-                        thermal: currentThermal,
-                        topCPU: topCPU,
-                        topMemory: topMemory,
+                        thermal: self.lastThermalSnapshot,
+                        topCPU: self.lastTopCPU,
+                        topMemory: self.lastTopMemory,
                         diagnostics: diag,
                         isMeasuringCPU: false
                     )
                 }
             } else {
                 self.publishDiagnosticSnapshot(
-                    thermal: ThermalSnapshot(),
-                    topCPU: processResult.topCPU,
-                    topMemory: processResult.topMemory,
-                    diagnostics: NetworkDiagnosticsSnapshot(isMeasuring: false),
+                    thermal: self.lastThermalSnapshot,
+                    topCPU: self.lastTopCPU,
+                    topMemory: self.lastTopMemory,
+                    diagnostics: self.lastDiagnosticsSnapshot,
                     isMeasuringCPU: false
                 )
             }
