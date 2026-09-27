@@ -37,6 +37,12 @@ public final class MonitoringCoordinator: @unchecked Sendable {
     private var currentMode: Mode = .passive
     private let lock = NSLock()
     
+    public var mode: Mode {
+        lock.lock()
+        defer { lock.unlock() }
+        return currentMode
+    }
+    
     // Handlers publishing to UI
     public var onSystemSnapshot: (@Sendable (SystemSnapshot) -> Void)?
     public var onDiagnosticSnapshot: (@Sendable (DiagnosticSnapshot) -> Void)?

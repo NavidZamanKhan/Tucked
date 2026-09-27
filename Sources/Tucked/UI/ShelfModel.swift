@@ -22,6 +22,7 @@ public final class ShelfModel: ObservableObject {
     
     // Dynamic Island opening presentation and morph anchor states
     @Published public var isShelfPresented: Bool = false
+    @Published public var isContentVisible: Bool = false
     @Published public var anchorXFraction: CGFloat = 0.5
     
     // Callback to request closing from view interaction
@@ -86,6 +87,7 @@ public final class ShelfModel: ObservableObject {
     }
     
     public func updateDiagnosticSnapshot(_ snapshot: DiagnosticSnapshot) {
+        guard isShelfPresented else { return }
         self.diagnosticSnapshot = snapshot
     }
     

@@ -49,8 +49,7 @@ public final class ShelfController: NSObject {
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
-    private var isAnimating: Bool = false
-    private var isDismissing: Bool = false
+    private var dismissalWorkItem: DispatchWorkItem?
     
     public init(model: ShelfModel, coordinator: MonitoringCoordinator) {
         let initialRect = NSRect(x: 0, y: 0, width: 610, height: 740)
@@ -119,7 +118,7 @@ public final class ShelfController: NSObject {
     }
     
     public var isVisible: Bool {
-        return panel.isVisible && (model.isShelfPresented || isAnimating)
+        return panel.isVisible && model.isShelfPresented
     }
     
     public func toggle(relativeTo positioningView: NSView) {
@@ -131,9 +130,14 @@ public final class ShelfController: NSObject {
     }
     
     public func show(relativeTo positioningView: NSView) {
-        guard !isVisible, !isAnimating else { return }
+        guard !isVisible else { return }
+        
+        dismissalWorkItem?.cancel()
+        dismissalWorkItem = nil
         
         self.statusItemButton = positioningView
+        
+        let wasVisible = panel.isVisible
         
         // Ensure starting on Overview route and refresh appearance
         model.navigateToOverview()
@@ -144,46 +148,64 @@ public final class ShelfController: NSObject {
         // Position panel frame dynamically relative to the status item
         updatePanelPosition(relativeTo: positioningView)
         
-        // Ensure initial collapsed state before showing window
-        model.isShelfPresented = false
+        if !wasVisible {
+            model.isShelfPresented = false
+            model.isContentVisible = false
+            panel.orderFrontRegardless()
+            panel.makeKey()
+        } else {
+            panel.orderFrontRegardless()
+            panel.makeKey()
+        }
         
-        panel.orderFrontRegardless()
-        panel.makeKey()
-        
-        isAnimating = true
         coordinator?.shelfDidOpen()
         installEventMonitors()
         
-        // Gliding spring opening physics at 120Hz
-        DispatchQueue.main.async { [weak self] in
+        let runAnimation = { [weak self] in
             guard let self = self else { return }
-            withAnimation(.spring(response: 0.36, dampingFraction: 0.78)) {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                 self.model.isShelfPresented = true
             }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.36) { [weak self] in
-                self?.isAnimating = false
+            withAnimation(.easeIn(duration: 0.18)) {
+                self.model.isContentVisible = true
             }
+        }
+        
+        if !wasVisible {
+            DispatchQueue.main.async {
+                runAnimation()
+            }
+        } else {
+            runAnimation()
         }
     }
     
     public func close() {
-        guard isVisible, !isDismissing else { return }
+        guard isVisible else { return }
         
-        isDismissing = true
         removeEventMonitors()
+        coordinator?.shelfDidClose()
         
-        // Snappy spring collapse
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.90)) {
+        dismissalWorkItem?.cancel()
+        dismissalWorkItem = nil
+        
+        // Snappy content fade out so text doesn't squash during upward collapse
+        withAnimation(.easeOut(duration: 0.08)) {
+            self.model.isContentVisible = false
+        }
+        
+        // Snappy spring collapse upwards into the menu bar
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.92)) {
             self.model.isShelfPresented = false
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [weak self] in
+        let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             self.panel.orderOut(nil)
-            self.isDismissing = false
-            self.coordinator?.shelfDidClose()
+            self.dismissalWorkItem = nil
         }
+        self.dismissalWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26, execute: workItem)
     }
     
     // MARK: - Panel Geometry
@@ -260,7 +282,7 @@ public final class ShelfController: NSObject {
         
         // Global monitor for clicks outside the application
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            guard let self = self, self.isVisible, !self.isDismissing else { return }
+            guard let self = self, self.isVisible else { return }
             
             let mouseLocation = NSEvent.mouseLocation
             if let button = self.statusItemButton, let window = button.window {

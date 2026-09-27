@@ -37,6 +37,7 @@ public struct ShelfView: View {
             // Click catcher outside the pill but inside window padding
             Color.clear
                 .contentShape(Rectangle())
+                .allowsHitTesting(model.isShelfPresented)
                 .onTapGesture {
                     model.requestClose()
                 }
@@ -52,7 +53,7 @@ public struct ShelfView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.22), value: model.currentRoute)
-                .opacity(model.isShelfPresented ? 1.0 : 0.0)
+                .opacity(model.isContentVisible ? 1.0 : 0.0)
                 .scaleEffect(
                     model.isShelfPresented ? 1.0 : 0.94,
                     anchor: UnitPoint(x: model.anchorXFraction, y: 0)
@@ -79,10 +80,12 @@ public struct ShelfView: View {
             )
             .offset(y: model.isShelfPresented ? 6 : -12)
             .opacity(model.isShelfPresented ? 1.0 : 0.0)
+            .allowsHitTesting(model.isShelfPresented)
         }
         .padding(.horizontal, 30)
         .padding(.top, 0)
         .padding(.bottom, 36)
         .preferredColorScheme(model.preferredColorScheme)
+        .environment(\.controlActiveState, .active)
     }
 }

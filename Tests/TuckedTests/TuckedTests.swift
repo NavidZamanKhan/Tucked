@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import AppKit
 @testable import Tucked
 
 @Suite("HistoryStore Tests")
@@ -432,7 +433,22 @@ struct ShelfModelActionTests {
     @Test @MainActor func testDynamicIslandInitialAnimationState() {
         let model = ShelfModel()
         #expect(model.isShelfPresented == false)
+        #expect(model.isContentVisible == false)
         #expect(model.anchorXFraction == 0.5)
+        
+        // Diagnostic snapshot updates should be dropped while shelf is closed
+        let dummySnapshot = DiagnosticSnapshot(
+            topCPUProcesses: [
+                ProcessItem(pid: 1234, name: "TestApp", bundleIdentifier: nil, ownerUID: 501, cpuUsagePercent: 50.0, memoryBytes: 100_000_000, isClosable: true, isSystemProtected: false)
+            ]
+        )
+        model.updateDiagnosticSnapshot(dummySnapshot)
+        #expect(model.diagnosticSnapshot.topCPUProcesses.isEmpty)
+        
+        // When presented, diagnostic snapshot updates are accepted
+        model.isShelfPresented = true
+        model.updateDiagnosticSnapshot(dummySnapshot)
+        #expect(model.diagnosticSnapshot.topCPUProcesses.count == 1)
         
         let box = ResetBox()
         model.onCloseRequested = {
@@ -472,6 +488,54 @@ struct ProcessSkeletonViewTests {
         #expect(model.diagnosticSnapshot.isMeasuringCPUProcesses == true)
         #expect(model.diagnosticSnapshot.topCPUProcesses.isEmpty)
         #expect(model.diagnosticSnapshot.topMemoryProcesses.isEmpty)
+    }
+}
+
+@Suite("DynamicIslandTransition Tests")
+struct DynamicIslandTransitionTests {
+    @Test @MainActor func testShelfControllerToggleLifecycle() {
+        let coordinator = MonitoringCoordinator()
+        let model = ShelfModel()
+        let controller = ShelfController(model: model, coordinator: coordinator)
+        
+        let window = NSWindow(
+            contentRect: NSRect(x: 100, y: 500, width: 200, height: 22),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        let button = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 22))
+        window.contentView?.addSubview(button)
+        
+        // Initial closed state
+        #expect(controller.isVisible == false)
+        #expect(model.isShelfPresented == false)
+        #expect(model.isContentVisible == false)
+        
+        // Show shelf
+        controller.show(relativeTo: button)
+        #expect(controller.panel.isVisible == true)
+        #expect(coordinator.mode == .diagnostic)
+        
+        // Simulate animation completion
+        model.isShelfPresented = true
+        model.isContentVisible = true
+        #expect(controller.isVisible == true)
+        
+        // Close shelf: diagnostics must stop immediately
+        controller.close()
+        #expect(model.isShelfPresented == false)
+        #expect(model.isContentVisible == false)
+        #expect(coordinator.mode == .passive)
+        
+        // Fast re-open mid-flight while panel is still visible
+        controller.show(relativeTo: button)
+        #expect(coordinator.mode == .diagnostic)
+        #expect(controller.panel.isVisible == true)
+        
+        // Final close
+        controller.close()
+        coordinator.stop()
     }
 }
 
