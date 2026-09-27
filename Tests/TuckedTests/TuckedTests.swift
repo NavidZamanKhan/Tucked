@@ -539,5 +539,38 @@ struct DynamicIslandTransitionTests {
     }
 }
 
+@Suite("HealthStatusIndicator Tests")
+struct HealthStatusIndicatorTests {
+    @Test @MainActor func testCPUStatusIndicator() {
+        let normal = HealthStatusIndicator.cpu(status: .normal)
+        #expect(normal.options.count == 3)
+        #expect(normal.selectedIndex == 0)
+        #expect(normal.options[0].label == "Normal")
+        #expect(normal.options[1].label == "Heavy")
+        #expect(normal.options[2].label == "Critical")
+        
+        let heavy = HealthStatusIndicator.cpu(status: .heavy)
+        #expect(heavy.selectedIndex == 1)
+        
+        let critical = HealthStatusIndicator.cpu(status: .critical)
+        #expect(critical.selectedIndex == 2)
+    }
+    
+    @Test @MainActor func testNetworkStatusIndicator() {
+        let stable = HealthStatusIndicator.network(status: .stable)
+        #expect(stable.options.count == 3)
+        #expect(stable.selectedIndex == 0)
+        #expect(stable.options[0].label == "Stable")
+        #expect(stable.options[1].label == "Degraded")
+        #expect(stable.options[2].label == "Offline")
+        
+        let degraded = HealthStatusIndicator.network(status: .degraded)
+        #expect(degraded.selectedIndex == 1)
+        
+        let offline = HealthStatusIndicator.network(status: .offline)
+        #expect(offline.selectedIndex == 2)
+    }
+}
+
 
 

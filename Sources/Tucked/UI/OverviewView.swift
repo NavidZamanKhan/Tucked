@@ -53,15 +53,12 @@ public struct OverviewView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.primary)
                     
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
                         Text(TuckedFormatter.formatPercent(model.systemSnapshot.cpu.totalUsage))
                             .font(.system(size: 26, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                         
-                        HealthPill(
-                            text: model.systemSnapshot.cpu.status.rawValue,
-                            color: statusColor(for: model.systemSnapshot.cpu.status)
-                        )
+                        HealthStatusIndicator.cpu(status: model.systemSnapshot.cpu.status)
                         Spacer()
                     }
                     
@@ -83,15 +80,12 @@ public struct OverviewView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.primary)
                     
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
                         Text(TuckedFormatter.formatPercent(model.systemSnapshot.memory.usedPercentage))
                             .font(.system(size: 26, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                         
-                        HealthPill(
-                            text: model.systemSnapshot.memory.status.rawValue,
-                            color: statusColor(for: model.systemSnapshot.memory.status)
-                        )
+                        HealthStatusIndicator.memory(status: model.systemSnapshot.memory.status)
                         Spacer()
                     }
                     
@@ -112,15 +106,12 @@ public struct OverviewView: View {
             
             // Section 2: NETWORK
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .center) {
                     Text("NETWORK")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.primary)
                     Spacer()
-                    HealthPill(
-                        text: model.systemSnapshot.network.status.rawValue,
-                        color: networkStatusColor(for: model.systemSnapshot.network.status)
-                    )
+                    HealthStatusIndicator.network(status: model.systemSnapshot.network.status)
                 }
                 
                 HStack(spacing: 20) {
@@ -344,28 +335,5 @@ public struct OverviewView: View {
         return model.diagnosticSnapshot.networkDiagnostics.localIP != nil ? "en0" : "-"
     }
     
-    private func statusColor(for status: CPUHealthStatus) -> Color {
-        switch status {
-        case .normal: return .green
-        case .heavy: return .orange
-        case .critical: return .red
-        }
-    }
-    
-    private func statusColor(for status: MemoryHealthStatus) -> Color {
-        switch status {
-        case .normal: return .green
-        case .heavy: return .orange
-        case .critical: return .red
-        }
-    }
-    
-    private func networkStatusColor(for status: NetworkHealthStatus) -> Color {
-        switch status {
-        case .stable: return .green
-        case .degraded: return .orange
-        case .poor: return .red
-        case .checking, .offline: return .secondary
-        }
-    }
+
 }
