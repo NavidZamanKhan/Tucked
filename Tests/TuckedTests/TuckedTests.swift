@@ -186,3 +186,18 @@ struct CalculationFixturesTests {
         #expect(snapshot.freeBytes == 0)
     }
 }
+
+@Suite("ThermalProvider Tests")
+struct ThermalProviderTests {
+    @Test func testThermalProviderSample() {
+        let provider = ThermalProvider()
+        defer { provider.stop() }
+        let snapshot = provider.sample()
+        
+        #expect(snapshot.state != .unavailable)
+        if let temp = snapshot.cpuTemperatureCelsius {
+            #expect(temp > 0 && temp < 130)
+        }
+    }
+}
+

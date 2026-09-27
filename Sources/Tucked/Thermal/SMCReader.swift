@@ -31,6 +31,7 @@ public final class SMCReader: @unchecked Sendable {
         var vers = SMCVersion()
         var pLimitData = SMCPLimitData()
         var keyInfo = SMCKeyInfo()
+        var padding: UInt16 = 0
         var result: UInt8 = 0
         var status: UInt8 = 0
         var data8: UInt8 = 0
@@ -192,7 +193,9 @@ public final class SMCReader: @unchecked Sendable {
         for i in 0..<count {
             let key = SensorCatalog.fanActualRPMKey(index: i)
             if let rpm = readNumericKey(key) {
-                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: Int(round(rpm))))
+                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: max(0, Int(round(rpm)))))
+            } else {
+                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: 0))
             }
         }
         
@@ -212,10 +215,18 @@ public final class SMCReader: @unchecked Sendable {
             let raw = (Int16(data[0]) << 8) | Int16(data[1])
             return Double(raw) / 256.0
         }
-        // flt: 32-bit float
+        // flt: 32-bit float (Apple Silicon little-endian IEEE 754 with big-endian fallback)
         if typeCode == fourCCToUInt32("flt ") && data.count >= 4 {
-            let rawUInt = (UInt32(data[0]) << 24) | (UInt32(data[1]) << 16) | (UInt32(data[2]) << 8) | UInt32(data[3])
-            return Double(Float(bitPattern: rawUInt))
+            let rawLE = UInt32(data[0]) | (UInt32(data[1]) << 8) | (UInt32(data[2]) << 16) | (UInt32(data[3]) << 24)
+            let valLE = Float(bitPattern: rawLE)
+            if !valLE.isNaN && !valLE.isInfinite && valLE > 0 && valLE < 150 {
+                return Double(valLE)
+            }
+            let rawBE = (UInt32(data[0]) << 24) | (UInt32(data[1]) << 16) | (UInt32(data[2]) << 8) | UInt32(data[3])
+            let valBE = Float(bitPattern: rawBE)
+            if !valBE.isNaN && !valBE.isInfinite && valBE > 0 && valBE < 150 {
+                return Double(valBE)
+            }
         }
         // fpe2: unsigned fixed point (14 bits integer, 2 bits fraction)
         if typeCode == fourCCToUInt32("fpe2") && data.count >= 2 {
@@ -239,13 +250,29 @@ public final class SMCReader: @unchecked Sendable {
             let val = (UInt16(data[0]) << 8) | UInt16(data[1])
             return Double(val)
         }
+        if typeCode == fourCCToUInt32("ui32") && data.count >= 4 {
+            let val = (UInt32(data[0]) << 24) | (UInt32(data[1]) << 16) | (UInt32(data[2]) << 8) | UInt32(data[3])
+            return Double(val)
+        }
         if typeCode == fourCCToUInt32("fpe2") && data.count >= 2 {
             let raw = (UInt16(data[0]) << 8) | UInt16(data[1])
             return Double(raw) / 4.0
         }
+        if typeCode == fourCCToUInt32("sp78") && data.count >= 2 {
+            let raw = (Int16(data[0]) << 8) | Int16(data[1])
+            return Double(raw) / 256.0
+        }
         if typeCode == fourCCToUInt32("flt ") && data.count >= 4 {
-            let rawUInt = (UInt32(data[0]) << 24) | (UInt32(data[1]) << 16) | (UInt32(data[2]) << 8) | UInt32(data[3])
-            return Double(Float(bitPattern: rawUInt))
+            let rawLE = UInt32(data[0]) | (UInt32(data[1]) << 8) | (UInt32(data[2]) << 16) | (UInt32(data[3]) << 24)
+            let valLE = Float(bitPattern: rawLE)
+            if !valLE.isNaN && !valLE.isInfinite && valLE >= 0 && valLE < 20000 {
+                return Double(valLE)
+            }
+            let rawBE = (UInt32(data[0]) << 24) | (UInt32(data[1]) << 16) | (UInt32(data[2]) << 8) | UInt32(data[3])
+            let valBE = Float(bitPattern: rawBE)
+            if !valBE.isNaN && !valBE.isInfinite && valBE >= 0 && valBE < 20000 {
+                return Double(valBE)
+            }
         }
         
         return nil
@@ -279,9 +306,10 @@ public final class SMCReader: @unchecked Sendable {
             return nil
         }
         
-        let mirror = Mirror(reflecting: outputStructure.bytes)
-        let byteList = mirror.children.compactMap { $0.value as? UInt8 }
-        return Array(byteList.prefix(Int(size)))
+        return withUnsafeBytes(of: &outputStructure.bytes) { rawBuffer in
+            let count = min(Int(size), 32)
+            return Array(rawBuffer.prefix(count))
+        }
     }
 
     private func callSMC(input: inout SMCKeyData, output: inout SMCKeyData) -> kern_return_t {
