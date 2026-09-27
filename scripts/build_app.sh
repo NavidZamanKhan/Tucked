@@ -3,7 +3,7 @@ set -e
 
 # Build release binary
 echo "Building Tucked binary..."
-swift build -c release
+xcrun swift build -c release
 
 # Paths
 APP_DIR="build/Tucked.app"

@@ -101,6 +101,15 @@ struct ProcessTerminationPolicyTests {
 
 @Suite("Calculation and Math Fixtures")
 struct CalculationFixturesTests {
+    @Test func testDarwinCPUTicksIndexMapping() {
+        // Darwin Mach constants from mach/machine.h
+        // CPU_STATE_USER = 0, CPU_STATE_SYSTEM = 1, CPU_STATE_IDLE = 2, CPU_STATE_NICE = 3
+        #expect(CPU_STATE_USER == 0)
+        #expect(CPU_STATE_SYSTEM == 1)
+        #expect(CPU_STATE_IDLE == 2)
+        #expect(CPU_STATE_NICE == 3)
+    }
+    
     @Test func testCPUDeltasFixture() {
         // From dossier: U=10, N=5, S=15, I=70 yields User 15%, System 15%, Total 30%
         let u: UInt64 = 10

@@ -39,32 +39,34 @@ public final class CPUSampler: @unchecked Sendable {
             return CPUUsageSnapshot(totalUsage: 0, userUsage: 0, systemUsage: 0, idleUsage: 100, status: .normal)
         }
         
+        // Darwin Mach host_cpu_load_info indices:
+        // CPU_STATE_USER = 0, CPU_STATE_SYSTEM = 1, CPU_STATE_IDLE = 2, CPU_STATE_NICE = 3
         let currentUser = cpuLoad.cpu_ticks.0
-        let currentNice = cpuLoad.cpu_ticks.1
-        let currentSystem = cpuLoad.cpu_ticks.2
-        let currentIdle = cpuLoad.cpu_ticks.3
+        let currentSystem = cpuLoad.cpu_ticks.1
+        let currentIdle = cpuLoad.cpu_ticks.2
+        let currentNice = cpuLoad.cpu_ticks.3
         
         guard hasBaseline else {
             previousUserTicks = currentUser
-            previousNiceTicks = currentNice
             previousSystemTicks = currentSystem
             previousIdleTicks = currentIdle
+            previousNiceTicks = currentNice
             hasBaseline = true
             return CPUUsageSnapshot(totalUsage: 0, userUsage: 0, systemUsage: 0, idleUsage: 100, status: .normal)
         }
         
         // 32-bit unsigned modular difference handles wraps safely
         let userDiff = currentUser &- previousUserTicks
-        let niceDiff = currentNice &- previousNiceTicks
         let systemDiff = currentSystem &- previousSystemTicks
         let idleDiff = currentIdle &- previousIdleTicks
+        let niceDiff = currentNice &- previousNiceTicks
         
         previousUserTicks = currentUser
-        previousNiceTicks = currentNice
         previousSystemTicks = currentSystem
         previousIdleTicks = currentIdle
+        previousNiceTicks = currentNice
         
-        let totalTicks = UInt64(userDiff) + UInt64(niceDiff) + UInt64(systemDiff) + UInt64(idleDiff)
+        let totalTicks = UInt64(userDiff) + UInt64(systemDiff) + UInt64(idleDiff) + UInt64(niceDiff)
         guard totalTicks > 0 else {
             return CPUUsageSnapshot(totalUsage: 0, userUsage: 0, systemUsage: 0, idleUsage: 100, status: currentStatus)
         }
