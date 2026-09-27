@@ -27,121 +27,72 @@ public struct BidirectionalNetworkSparklineView: View {
             let scale = context.environment.displayScale
             let pixel = scale > 0 ? (1.0 / scale) : 1.0
 
-            // Helper to center a 1-pixel stroke squarely on physical pixel boundary
-            func alignStroke(_ val: CGFloat) -> CGFloat {
-                return (floor(val * scale) + 0.5) * pixel
-            }
-
-            // Helper to snap vertex to physical pixel grid
-            func snapCoord(_ val: CGFloat) -> CGFloat {
-                return round(val * scale) * pixel
-            }
-
-            let midY = alignStroke(size.height / 2.0)
-            let topQuarterY = alignStroke(midY / 2.0)
-            let bottomQuarterY = alignStroke(midY + (size.height - midY) / 2.0)
-
-            // 25% and 75% subtle graticule guidelines
-            let guideStyle = StrokeStyle(lineWidth: pixel, lineCap: .square, dash: [pixel, pixel * 3])
-
-            var topQuarterPath = Path()
-            topQuarterPath.move(to: CGPoint(x: 0, y: topQuarterY))
-            topQuarterPath.addLine(to: CGPoint(x: size.width, y: topQuarterY))
-            context.stroke(topQuarterPath, with: .color(Color.primary.opacity(0.05)), style: guideStyle)
-
-            var bottomQuarterPath = Path()
-            bottomQuarterPath.move(to: CGPoint(x: 0, y: bottomQuarterY))
-            bottomQuarterPath.addLine(to: CGPoint(x: size.width, y: bottomQuarterY))
-            context.stroke(bottomQuarterPath, with: .color(Color.primary.opacity(0.05)), style: guideStyle)
+            let centerPixel = floor((size.height / 2.0) * scale)
+            let midY = centerPixel * pixel
+            let strokeMidY = (centerPixel + 0.5) * pixel
+            let usableHalfHeight = max(midY - (2.0 * pixel), 1.0)
 
             let effectiveCapacity = max(capacity, 2)
             let visibleUpload = Array(uploadData.suffix(effectiveCapacity))
             let visibleDownload = Array(downloadData.suffix(effectiveCapacity))
-            let totalSlots = CGFloat(effectiveCapacity - 1)
-            let stepX = size.width / totalSlots
-            let heightAvailable = max(midY - (3.0 * pixel), 1.0)
+            let maxSamples = max(visibleUpload.count, visibleDownload.count)
+            guard maxSamples > 0 else { return }
 
-            // Render Upload (Top half: needle spikes growing UP from midY)
-            if !visibleUpload.isEmpty {
-                let uploadCeiling = Self.steppedCeiling(for: visibleUpload.max() ?? 0.0)
-                let startX = max(0, size.width - CGFloat(visibleUpload.count - 1) * stepX)
+            let totalSlots = CGFloat(effectiveCapacity)
+            let slotWidth = size.width / totalSlots
+            let rawBarWidth = max(pixel, slotWidth * 0.55)
+            let barWidth = max(pixel, round(rawBarWidth * scale) * pixel)
 
-                var points = [CGPoint]()
-                points.reserveCapacity(visibleUpload.count)
-
-                for (index, value) in visibleUpload.enumerated() {
-                    let rawX = startX + CGFloat(index) * stepX
-                    let normalized = CGFloat(max(0.0, min(1.0, value / uploadCeiling)))
-                    let rawY = midY - (normalized * heightAvailable)
-                    points.append(CGPoint(x: snapCoord(rawX), y: snapCoord(rawY)))
-                }
-
-                var uploadPath = Path()
-                if visibleUpload.count == 1 {
-                    let rawY = midY - (CGFloat(max(0.0, min(1.0, visibleUpload[0] / uploadCeiling))) * heightAvailable)
-                    let y = alignStroke(rawY)
-                    uploadPath.move(to: CGPoint(x: startX, y: y))
-                    uploadPath.addLine(to: CGPoint(x: size.width, y: y))
-                } else if let first = points.first {
-                    uploadPath.move(to: first)
-                    for pt in points.dropFirst() {
-                        uploadPath.addLine(to: pt)
-                    }
-                }
-
-                let uploadStyle = StrokeStyle(
-                    lineWidth: pixel,
-                    lineCap: .butt,
-                    lineJoin: .miter,
-                    miterLimit: 10.0
-                )
-                context.stroke(uploadPath, with: .color(uploadColor), style: uploadStyle)
-            }
-
-            // Render Download (Bottom half: needle spikes growing DOWN from midY)
+            // Render Download Bars (pointing UPWARD into top half from midY)
             if !visibleDownload.isEmpty {
                 let downloadCeiling = Self.steppedCeiling(for: visibleDownload.max() ?? 0.0)
-                let startX = max(0, size.width - CGFloat(visibleDownload.count - 1) * stepX)
-
-                var points = [CGPoint]()
-                points.reserveCapacity(visibleDownload.count)
+                let startX = max(0, size.width - CGFloat(visibleDownload.count) * slotWidth)
 
                 for (index, value) in visibleDownload.enumerated() {
-                    let rawX = startX + CGFloat(index) * stepX
+                    guard value > 0 else { continue }
+                    let rawX = startX + CGFloat(index) * slotWidth + (slotWidth - barWidth) / 2.0
+                    let barX = round(rawX * scale) * pixel
+
                     let normalized = CGFloat(max(0.0, min(1.0, value / downloadCeiling)))
-                    let rawY = midY + (normalized * heightAvailable)
-                    points.append(CGPoint(x: snapCoord(rawX), y: snapCoord(rawY)))
-                }
+                    let rawHeight = normalized * usableHalfHeight
+                    // Minimum 1-pixel tick for active download traffic
+                    let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
+                    let barY = midY - barHeight
 
-                var downloadPath = Path()
-                if visibleDownload.count == 1 {
-                    let rawY = midY + (CGFloat(max(0.0, min(1.0, visibleDownload[0] / downloadCeiling))) * heightAvailable)
-                    let y = alignStroke(rawY)
-                    downloadPath.move(to: CGPoint(x: startX, y: y))
-                    downloadPath.addLine(to: CGPoint(x: size.width, y: y))
-                } else if let first = points.first {
-                    downloadPath.move(to: first)
-                    for pt in points.dropFirst() {
-                        downloadPath.addLine(to: pt)
-                    }
+                    let barRect = CGRect(x: barX, y: barY, width: barWidth, height: barHeight)
+                    context.fill(Path(barRect), with: .color(downloadColor))
                 }
-
-                let downloadStyle = StrokeStyle(
-                    lineWidth: pixel,
-                    lineCap: .butt,
-                    lineJoin: .miter,
-                    miterLimit: 10.0
-                )
-                context.stroke(downloadPath, with: .color(downloadColor), style: downloadStyle)
             }
 
-            // Center datum line dividing upload and download (drawn on top to maintain crisp neutral zero axis)
+            // Render Upload Bars (pointing DOWNWARD into bottom half from midY + pixel)
+            if !visibleUpload.isEmpty {
+                let uploadCeiling = Self.steppedCeiling(for: visibleUpload.max() ?? 0.0)
+                let startX = max(0, size.width - CGFloat(visibleUpload.count) * slotWidth)
+                let uploadBaselineY = midY + pixel
+
+                for (index, value) in visibleUpload.enumerated() {
+                    guard value > 0 else { continue }
+                    let rawX = startX + CGFloat(index) * slotWidth + (slotWidth - barWidth) / 2.0
+                    let barX = round(rawX * scale) * pixel
+
+                    let normalized = CGFloat(max(0.0, min(1.0, value / uploadCeiling)))
+                    let rawHeight = normalized * usableHalfHeight
+                    // Minimum 1-pixel tick for active upload traffic
+                    let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
+                    let barY = uploadBaselineY
+
+                    let barRect = CGRect(x: barX, y: barY, width: barWidth, height: barHeight)
+                    context.fill(Path(barRect), with: .color(uploadColor))
+                }
+            }
+
+            // Neutral Center Baseline dividing download and upload
             var centerLinePath = Path()
-            centerLinePath.move(to: CGPoint(x: 0, y: midY))
-            centerLinePath.addLine(to: CGPoint(x: size.width, y: midY))
+            centerLinePath.move(to: CGPoint(x: 0, y: strokeMidY))
+            centerLinePath.addLine(to: CGPoint(x: size.width, y: strokeMidY))
             context.stroke(
                 centerLinePath,
-                with: .color(Color.primary.opacity(0.18)),
+                with: .color(Color.primary.opacity(0.24)),
                 style: StrokeStyle(lineWidth: pixel, lineCap: .butt)
             )
         }

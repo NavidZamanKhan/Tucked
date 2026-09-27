@@ -24,39 +24,6 @@ public struct SparklineView: View {
             let scale = context.environment.displayScale
             let pixel = scale > 0 ? (1.0 / scale) : 1.0
 
-            // Helper to center a 1-pixel stroke squarely on physical pixel boundary
-            func alignStroke(_ val: CGFloat) -> CGFloat {
-                return (floor(val * scale) + 0.5) * pixel
-            }
-
-            // Helper to snap vertex to physical pixel grid
-            func snapCoord(_ val: CGFloat) -> CGFloat {
-                return round(val * scale) * pixel
-            }
-
-            let baselineY = alignStroke(size.height - 1.5 * pixel)
-            let midGuideY = alignStroke(size.height / 2.0)
-
-            // 50% Mid Guide - fine dotted 1-pixel graticule
-            var midGuidePath = Path()
-            midGuidePath.move(to: CGPoint(x: 0, y: midGuideY))
-            midGuidePath.addLine(to: CGPoint(x: size.width, y: midGuideY))
-            context.stroke(
-                midGuidePath,
-                with: .color(Color.primary.opacity(0.06)),
-                style: StrokeStyle(lineWidth: pixel, lineCap: .square, dash: [pixel, pixel * 3])
-            )
-
-            // Baseline - crisp 1-pixel datum rule
-            var baselinePath = Path()
-            baselinePath.move(to: CGPoint(x: 0, y: baselineY))
-            baselinePath.addLine(to: CGPoint(x: size.width, y: baselineY))
-            context.stroke(
-                baselinePath,
-                with: .color(Color.primary.opacity(0.12)),
-                style: StrokeStyle(lineWidth: pixel, lineCap: .butt)
-            )
-
             let effectiveCapacity = max(capacity, 2)
             let visibleData = Array(data.suffix(effectiveCapacity))
             guard !visibleData.isEmpty else { return }
@@ -65,51 +32,32 @@ public struct SparklineView: View {
             if let explicitMax = maxScale, explicitMax > 0 {
                 maxVal = explicitMax
             } else {
-                let peak = visibleData.max() ?? 0.0
-                if peak <= 25.0 {
-                    maxVal = 25.0
-                } else if peak <= 50.0 {
-                    maxVal = 50.0
-                } else {
-                    maxVal = 100.0
-                }
+                maxVal = 100.0
             }
 
-            let usableHeight = max(baselineY - (3.0 * pixel), 1.0)
-            let totalSlots = CGFloat(effectiveCapacity - 1)
-            let stepX = size.width / totalSlots
-            let startX = max(0, size.width - CGFloat(visibleData.count - 1) * stepX)
+            let baselineY = (floor((size.height - 2.0 * pixel) * scale)) * pixel
+            let usableHeight = max(baselineY - (2.0 * pixel), 1.0)
+            let totalSlots = CGFloat(effectiveCapacity)
+            let slotWidth = size.width / totalSlots
 
-            var points = [CGPoint]()
-            points.reserveCapacity(visibleData.count)
+            // Ultra-thin bar width with tight comb spacing
+            let rawBarWidth = max(pixel, slotWidth * 0.55)
+            let barWidth = max(pixel, round(rawBarWidth * scale) * pixel)
+            let startX = max(0, size.width - CGFloat(visibleData.count) * slotWidth)
 
             for (index, value) in visibleData.enumerated() {
-                let rawX = startX + CGFloat(index) * stepX
-                let normalizedY = max(0.0, min(1.0, value / maxVal))
-                let rawY = baselineY - (CGFloat(normalizedY) * usableHeight)
-                points.append(CGPoint(x: snapCoord(rawX), y: snapCoord(rawY)))
-            }
+                let rawX = startX + CGFloat(index) * slotWidth + (slotWidth - barWidth) / 2.0
+                let barX = round(rawX * scale) * pixel
 
-            var tracePath = Path()
-            if visibleData.count == 1 {
-                let y = alignStroke(baselineY - (CGFloat(max(0.0, min(1.0, visibleData[0] / maxVal))) * usableHeight))
-                tracePath.move(to: CGPoint(x: startX, y: y))
-                tracePath.addLine(to: CGPoint(x: size.width, y: y))
-            } else if let first = points.first {
-                tracePath.move(to: first)
-                for pt in points.dropFirst() {
-                    tracePath.addLine(to: pt)
-                }
-            }
+                let normalized = max(0.0, min(1.0, value / maxVal))
+                let rawHeight = CGFloat(normalized) * usableHeight
+                // Minimum 1-pixel tick so idle values create visible comb teeth
+                let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
+                let barY = baselineY - barHeight
 
-            // Precision hairline trace (1 physical device pixel)
-            let traceStyle = StrokeStyle(
-                lineWidth: pixel,
-                lineCap: .butt,
-                lineJoin: .miter,
-                miterLimit: 10.0
-            )
-            context.stroke(tracePath, with: .color(color), style: traceStyle)
+                let barRect = CGRect(x: barX, y: barY, width: barWidth, height: barHeight)
+                context.fill(Path(barRect), with: .color(color))
+            }
         }
         .frame(height: 38)
         .background(
