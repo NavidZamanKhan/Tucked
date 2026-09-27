@@ -9,14 +9,18 @@ public struct ShelfView: View {
     }
     
     public var body: some View {
-        Group {
-            switch model.currentRoute {
-            case .overview:
-                OverviewView(model: model)
-            case .settings:
-                SettingsView(model: model)
+        ZStack {
+            Color.white.ignoresSafeArea()
+            
+            Group {
+                switch model.currentRoute {
+                case .overview:
+                    OverviewView(model: model)
+                case .settings:
+                    SettingsView(model: model)
+                }
             }
         }
-        .background(.ultraThinMaterial)
+        .preferredColorScheme(.light)
     }
 }

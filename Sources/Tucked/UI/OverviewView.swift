@@ -22,10 +22,10 @@ public struct OverviewView: View {
                 if let status = model.quitStatusMessage {
                     Text(status)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.12))
+                        .background(Color.black.opacity(0.06))
                         .cornerRadius(4)
                 }
                 
@@ -34,7 +34,7 @@ public struct OverviewView: View {
                 }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary)
                 }
                 .buttonStyle(.plain)
                 .help("Settings")

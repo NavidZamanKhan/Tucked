@@ -33,7 +33,7 @@ public struct SettingsView: View {
                 Text("SETTINGS")
                     .font(.system(size: 13, weight: .bold))
                     .tracking(1.2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
@@ -47,7 +47,7 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("GENERAL")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                 
                 Toggle("Launch at Login", isOn: $launchAtLogin)
                     .font(.system(size: 13))
@@ -63,7 +63,7 @@ public struct SettingsView: View {
                 
                 Text("Status: \(loginItemStatus)")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
             }
             
             Divider()
@@ -72,7 +72,7 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ABOUT TUCKED")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                 
                 Text("Your Mac, at a glance.")
                     .font(.system(size: 13, weight: .medium))
@@ -80,11 +80,11 @@ public struct SettingsView: View {
                 
                 Text("CPU, memory, network. Nothing you don't need.")
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                 
                 Text("Version 1.0 (Native Apple Silicon)")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                     .padding(.top, 4)
             }
             

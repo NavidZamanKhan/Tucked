@@ -24,6 +24,7 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
         popover.behavior = .transient
         popover.animates = true
         popover.delegate = self
+        popover.appearance = NSAppearance(named: .aqua)
         
         let contentView = ShelfView(model: model)
         let hostingController = NSHostingController(rootView: contentView)
