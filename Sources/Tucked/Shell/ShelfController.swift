@@ -61,7 +61,7 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
     
     public func close() {
         guard popover.isShown else { return }
-        popover.performClose(nil)
+        popover.close()
         removeEventMonitors()
         coordinator?.shelfDidClose()
     }
@@ -86,6 +86,13 @@ public final class ShelfController: NSObject, NSPopoverDelegate {
                 return nil
             }
             return event
+        }
+        
+        // Global monitor for clicks anywhere on screen outside the app
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.close()
+            }
         }
     }
     
