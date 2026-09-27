@@ -16,6 +16,14 @@ public struct ProcessRowView: View {
     
     public var body: some View {
         HStack(spacing: 6) {
+            // Process icon (14x14)
+            Image(nsImage: ProcessIconProvider.shared.icon(for: item.pid))
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 14, height: 14)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+            
             // Process name
             Text(item.name)
                 .font(.system(size: 12))
@@ -44,8 +52,8 @@ public struct ProcessRowView: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
-                    .help("Request normal Quit for \(item.name)")
-                    .accessibilityLabel("Quit \(item.name)")
+                    .help("Terminate \(item.name)")
+                    .accessibilityLabel("Terminate \(item.name)")
                 } else {
                     Color.clear
                         .frame(width: 16, height: 16)

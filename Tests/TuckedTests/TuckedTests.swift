@@ -210,3 +210,24 @@ struct ThermalProviderTests {
     }
 }
 
+@Suite("ProcessIconProvider Tests")
+struct ProcessIconProviderTests {
+    @Test @MainActor func testProcessIconResolutionAndCaching() {
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        let provider = ProcessIconProvider.shared
+        provider.clear()
+        
+        // Resolves an icon for a running process
+        let icon1 = provider.icon(for: ownPID)
+        #expect(icon1.size.width > 0 && icon1.size.height > 0)
+        
+        // Cache hit returns same object reference
+        let icon2 = provider.icon(for: ownPID)
+        #expect(icon1 === icon2)
+        
+        // Resolves default fallback icon for PID 1 (launchd)
+        let fallbackIcon = provider.icon(for: 1)
+        #expect(fallbackIcon.size.width > 0)
+    }
+}
+
