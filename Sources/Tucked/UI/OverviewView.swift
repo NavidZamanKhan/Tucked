@@ -96,11 +96,11 @@ public struct OverviewView: View {
                     
                     VStack(spacing: 4) {
                         MetricStatRow(label: "Used", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.usedBytes))
+                        MetricStatRow(label: "Free", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.freeBytes))
                         MetricStatRow(label: "Swap", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.swapBytes))
                         MetricStatRow(label: "Compressed", value: TuckedFormatter.formatBytes(model.systemSnapshot.memory.compressedBytes))
                         
                         // Vertical spacing placeholder to balance against CPU Temp & Fan rows
-                        Color.clear.frame(height: 16)
                         Color.clear.frame(height: 16)
                     }
                 }

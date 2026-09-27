@@ -151,4 +151,28 @@ struct CalculationFixturesTests {
         let jitter = sumDiff / Double(latencies.count - 1)
         #expect(jitter == 3.0)
     }
+    
+    @Test func testFreeMemoryCalculationFixture() {
+        let snapshot = MemoryUsageSnapshot(
+            usedBytes: 12_000_000_000,
+            totalPhysicalBytes: 16_000_000_000,
+            swapBytes: 0,
+            compressedBytes: 0,
+            usedPercentage: 75.0,
+            status: .normal
+        )
+        #expect(snapshot.freeBytes == 4_000_000_000)
+    }
+    
+    @Test func testFreeMemoryUnderflowFixture() {
+        let snapshot = MemoryUsageSnapshot(
+            usedBytes: 20_000_000_000,
+            totalPhysicalBytes: 16_000_000_000,
+            swapBytes: 0,
+            compressedBytes: 0,
+            usedPercentage: 100.0,
+            status: .critical
+        )
+        #expect(snapshot.freeBytes == 0)
+    }
 }

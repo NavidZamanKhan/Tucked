@@ -68,6 +68,10 @@ public struct MemoryUsageSnapshot: Sendable {
     public let usedPercentage: Double
     public let status: MemoryHealthStatus
     
+    public var freeBytes: UInt64 {
+        totalPhysicalBytes > usedBytes ? totalPhysicalBytes - usedBytes : 0
+    }
+    
     public init(
         usedBytes: UInt64 = 0,
         totalPhysicalBytes: UInt64 = 0,
