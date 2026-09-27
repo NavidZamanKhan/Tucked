@@ -137,6 +137,7 @@ public final class ShelfController: NSObject {
         
         // Ensure starting on Overview route and refresh appearance
         model.navigateToOverview()
+        model.resetDiagnosticSnapshot()
         model.isSystemDark = ShelfModel.checkSystemDark()
         updateAppearance(theme: model.currentTheme)
         

@@ -81,8 +81,21 @@ public final class ShelfModel: ObservableObject {
         self.networkTxHistory = history.networkTxHistory()
     }
     
+    public func resetDiagnosticSnapshot() {
+        self.diagnosticSnapshot = DiagnosticSnapshot(isMeasuringCPUProcesses: true)
+    }
+    
     public func updateDiagnosticSnapshot(_ snapshot: DiagnosticSnapshot) {
-        self.diagnosticSnapshot = snapshot
+        let wasMeasuring = self.diagnosticSnapshot.isMeasuringCPUProcesses && self.diagnosticSnapshot.topCPUProcesses.isEmpty
+        let isNowReady = !snapshot.isMeasuringCPUProcesses || !snapshot.topCPUProcesses.isEmpty
+        
+        if wasMeasuring && isNowReady {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                self.diagnosticSnapshot = snapshot
+            }
+        } else {
+            self.diagnosticSnapshot = snapshot
+        }
     }
     
     public func requestQuit(for item: ProcessItem) {

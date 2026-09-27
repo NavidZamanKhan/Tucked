@@ -144,7 +144,7 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                     topCPU: self.lastTopCPU,
                     topMemory: self.lastTopMemory,
                     diagnostics: diag,
-                    isMeasuringCPU: false
+                    isMeasuringCPU: self.lastTopCPU.isEmpty
                 )
             }
             
@@ -185,7 +185,7 @@ public final class MonitoringCoordinator: @unchecked Sendable {
                         topCPU: self.lastTopCPU,
                         topMemory: self.lastTopMemory,
                         diagnostics: diag,
-                        isMeasuringCPU: false
+                        isMeasuringCPU: self.lastTopCPU.isEmpty
                     )
                 }
             }

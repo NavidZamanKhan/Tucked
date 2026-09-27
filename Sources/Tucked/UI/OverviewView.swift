@@ -205,68 +205,70 @@ public struct OverviewView: View {
                 }
             }
             
-            Divider()
-            
-            // Section 3: HEAVY RIGHT NOW (Two Permanent Columns: Top CPU & Top Memory)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("HEAVY RIGHT NOW")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.primary)
+            if !model.diagnosticSnapshot.isMeasuringCPUProcesses || !model.diagnosticSnapshot.topCPUProcesses.isEmpty {
+                Divider()
+                    .transition(.opacity)
                 
-                HStack(alignment: .top, spacing: 24) {
-                    // Top CPU Column
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("TOP CPU")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.primary)
-                            .padding(.bottom, 2)
-                        
-                        if model.diagnosticSnapshot.isMeasuringCPUProcesses {
-                            Text("Measuring…")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .frame(height: 120, alignment: .topLeading)
-                        } else if model.diagnosticSnapshot.topCPUProcesses.isEmpty {
-                            Text("No heavy CPU processes")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .frame(height: 120, alignment: .topLeading)
-                        } else {
-                            ForEach(model.diagnosticSnapshot.topCPUProcesses) { item in
-                                ProcessRowView(
-                                    item: item,
-                                    formattedMetric: "\(Int(round(item.cpuUsagePercent)))%",
-                                    onQuit: { p in model.requestQuit(for: p) }
-                                )
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                // Section 3: HEAVY RIGHT NOW (Two Permanent Columns: Top CPU & Top Memory)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("HEAVY RIGHT NOW")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.primary)
                     
-                    // Top Memory Column
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("TOP MEMORY")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.primary)
-                            .padding(.bottom, 2)
-                        
-                        if model.diagnosticSnapshot.topMemoryProcesses.isEmpty {
-                            Text("Loading…")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .frame(height: 120, alignment: .topLeading)
-                        } else {
-                            ForEach(model.diagnosticSnapshot.topMemoryProcesses) { item in
-                                ProcessRowView(
-                                    item: item,
-                                    formattedMetric: TuckedFormatter.formatBytes(item.memoryBytes),
-                                    onQuit: { p in model.requestQuit(for: p) }
-                                )
+                    HStack(alignment: .top, spacing: 24) {
+                        // Top CPU Column
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("TOP CPU")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.primary)
+                                .padding(.bottom, 2)
+                            
+                            if model.diagnosticSnapshot.topCPUProcesses.isEmpty {
+                                Text("No heavy CPU processes")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                    .frame(height: 120, alignment: .topLeading)
+                            } else {
+                                ForEach(model.diagnosticSnapshot.topCPUProcesses) { item in
+                                    ProcessRowView(
+                                        item: item,
+                                        formattedMetric: "\(Int(round(item.cpuUsagePercent)))%",
+                                        onQuit: { p in model.requestQuit(for: p) }
+                                    )
+                                }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        
+                        // Top Memory Column
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("TOP MEMORY")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.primary)
+                                .padding(.bottom, 2)
+                            
+                            if model.diagnosticSnapshot.topMemoryProcesses.isEmpty {
+                                Text("No heavy memory processes")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                    .frame(height: 120, alignment: .topLeading)
+                            } else {
+                                ForEach(model.diagnosticSnapshot.topMemoryProcesses) { item in
+                                    ProcessRowView(
+                                        item: item,
+                                        formattedMetric: TuckedFormatter.formatBytes(item.memoryBytes),
+                                        onQuit: { p in model.requestQuit(for: p) }
+                                    )
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .top)),
+                    removal: .opacity
+                ))
             }
         }
         .padding(18)
