@@ -295,5 +295,26 @@ struct ProcessSamplerTests {
     }
 }
 
-
-
+@Suite("Sparkline Views Tests")
+@MainActor
+struct SparklineViewsTests {
+    @Test func testSparklineViewInit() {
+        let view = SparklineView(data: [10, 25, 50, 75, 100], maxScale: 100, color: .blue, capacity: 90)
+        #expect(view.data.count == 5)
+        #expect(view.maxScale == 100)
+        #expect(view.capacity == 90)
+    }
+    
+    @Test func testBidirectionalNetworkSparklineViewInit() {
+        let view = BidirectionalNetworkSparklineView(
+            uploadData: [0, 500, 10000, 0],
+            downloadData: [0, 1500, 20000, 0],
+            uploadColor: .teal,
+            downloadColor: .pink,
+            capacity: 90
+        )
+        #expect(view.uploadData.count == 4)
+        #expect(view.downloadData.count == 4)
+        #expect(view.capacity == 90)
+    }
+}
