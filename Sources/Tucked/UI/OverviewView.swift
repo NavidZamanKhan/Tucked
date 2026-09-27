@@ -63,7 +63,7 @@ public struct OverviewView: View {
                         HealthStatusIndicator.cpu(status: model.systemSnapshot.cpu.status, alignment: .trailing)
                     }
                     
-                    SparklineView(data: model.cpuHistory, color: .blue)
+                    SparklineView(data: model.cpuHistory, maxScale: nil, color: .blue)
                     
                     VStack(spacing: 4) {
                         MetricStatRow(label: "User", value: TuckedFormatter.formatPercent(model.systemSnapshot.cpu.userUsage))

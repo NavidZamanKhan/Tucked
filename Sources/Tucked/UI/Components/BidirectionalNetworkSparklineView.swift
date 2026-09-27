@@ -53,7 +53,7 @@ public struct BidirectionalNetworkSparklineView: View {
                     )
                     
                     if let first = uploadPoints.first, let last = uploadPoints.last {
-                        // Upload Area Fill
+                        // Upload Area Fill - subtle translucent gradient
                         Path { path in
                             path.move(to: CGPoint(x: first.x, y: midY))
                             for pt in uploadPoints {
@@ -64,13 +64,13 @@ public struct BidirectionalNetworkSparklineView: View {
                         }
                         .fill(
                             LinearGradient(
-                                colors: [uploadColor.opacity(0.35), uploadColor.opacity(0.03)],
+                                colors: [uploadColor.opacity(0.14), uploadColor.opacity(0.01)],
                                 startPoint: .top,
                                 endPoint: .center
                             )
                         )
                         
-                        // Upload Stroke Line
+                        // Upload Stroke Line - needle-sharp hairline miter trace
                         Path { path in
                             if uploadPoints.count == 1 {
                                 path.move(to: CGPoint(x: 0, y: first.y))
@@ -84,12 +84,12 @@ public struct BidirectionalNetworkSparklineView: View {
                         }
                         .stroke(
                             uploadColor.opacity(0.95),
-                            style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
+                            style: StrokeStyle(lineWidth: 1.0, lineCap: .butt, lineJoin: .miter, miterLimit: 10.0)
                         )
                     }
                 }
                 
-                // Download graph (Bottom half: spikes growing DOWN from midY)
+                // Download graph (Bottom half: needle spikes growing DOWN from midY)
                 if !visibleDownload.isEmpty {
                     let downloadPoints = calculatePoints(
                         data: visibleDownload,
@@ -100,7 +100,7 @@ public struct BidirectionalNetworkSparklineView: View {
                     )
                     
                     if let first = downloadPoints.first, let last = downloadPoints.last {
-                        // Download Area Fill
+                        // Download Area Fill - subtle translucent gradient
                         Path { path in
                             path.move(to: CGPoint(x: first.x, y: midY))
                             for pt in downloadPoints {
@@ -111,13 +111,13 @@ public struct BidirectionalNetworkSparklineView: View {
                         }
                         .fill(
                             LinearGradient(
-                                colors: [downloadColor.opacity(0.03), downloadColor.opacity(0.35)],
+                                colors: [downloadColor.opacity(0.01), downloadColor.opacity(0.14)],
                                 startPoint: .center,
                                 endPoint: .bottom
                             )
                         )
                         
-                        // Download Stroke Line
+                        // Download Stroke Line - needle-sharp hairline miter trace
                         Path { path in
                             if downloadPoints.count == 1 {
                                 path.move(to: CGPoint(x: 0, y: first.y))
@@ -131,7 +131,7 @@ public struct BidirectionalNetworkSparklineView: View {
                         }
                         .stroke(
                             downloadColor.opacity(0.95),
-                            style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
+                            style: StrokeStyle(lineWidth: 1.0, lineCap: .butt, lineJoin: .miter, miterLimit: 10.0)
                         )
                     }
                 }
@@ -155,10 +155,12 @@ public struct BidirectionalNetworkSparklineView: View {
         guard !data.isEmpty else { return [] }
         
         let maxVal = max(data.max() ?? 1024.0, 1024.0) // At least 1 KB/s minimum scale
-        let stepX = data.count > 1 ? size.width / CGFloat(data.count - 1) : size.width
+        let totalSlots = CGFloat(max(capacity, 2) - 1)
+        let stepX = size.width / totalSlots
+        let startX = max(0, size.width - CGFloat(data.count - 1) * stepX)
         
         return data.enumerated().map { index, value in
-            let x = CGFloat(index) * stepX
+            let x = startX + CGFloat(index) * stepX
             let normalized = CGFloat(max(0.0, min(1.0, value / maxVal)))
             let delta = normalized * heightAvailable
             let y = isUpward ? (baselineY - delta) : (baselineY + delta)

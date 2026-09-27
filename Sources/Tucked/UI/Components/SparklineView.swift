@@ -51,7 +51,7 @@ public struct SparklineView: View {
                     let first = points[0]
                     let last = points[points.count - 1]
                     
-                    // Background Area Fill
+                    // Background Area Fill - subtle whisper gradient for high trace contrast
                     Path { path in
                         path.move(to: CGPoint(x: first.x, y: baselineY))
                         for pt in points {
@@ -62,13 +62,13 @@ public struct SparklineView: View {
                     }
                     .fill(
                         LinearGradient(
-                            colors: [color.opacity(0.32), color.opacity(0.03)],
+                            colors: [color.opacity(0.12), color.opacity(0.01)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                     
-                    // Foreground Stroke Line
+                    // Foreground Stroke Line - needle-sharp hairline miter trace
                     Path { path in
                         if points.count == 1 {
                             path.move(to: CGPoint(x: 0, y: first.y))
@@ -82,7 +82,7 @@ public struct SparklineView: View {
                     }
                     .stroke(
                         color.opacity(0.95),
-                        style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
+                        style: StrokeStyle(lineWidth: 1.0, lineCap: .butt, lineJoin: .miter, miterLimit: 10.0)
                     )
                 }
                 
@@ -102,15 +102,17 @@ public struct SparklineView: View {
         if let explicitMax = maxScale, explicitMax > 0 {
             maxVal = explicitMax
         } else {
-            let actualMax = data.max() ?? 100.0
-            maxVal = actualMax > 0 ? actualMax : 100.0
+            let actualMax = data.max() ?? 25.0
+            maxVal = max(actualMax, 25.0)
         }
         
-        let stepX = data.count > 1 ? size.width / CGFloat(data.count - 1) : size.width
+        let totalSlots = CGFloat(max(capacity, 2) - 1)
+        let stepX = size.width / totalSlots
         let usableHeight = size.height - 4.0
+        let startX = max(0, size.width - CGFloat(data.count - 1) * stepX)
         
         return data.enumerated().map { index, value in
-            let x = CGFloat(index) * stepX
+            let x = startX + CGFloat(index) * stepX
             let normalizedY = max(0.0, min(1.0, value / maxVal))
             let y = baselineY - (CGFloat(normalizedY) * usableHeight)
             return CGPoint(x: x, y: y)
