@@ -253,4 +253,47 @@ struct AppThemeTests {
     }
 }
 
+@Suite("ProcessSampler Tests")
+struct ProcessSamplerTests {
+    @Test func testProcessSamplerDeferredResolution() {
+        let sampler = ProcessSampler()
+        sampler.reset()
+        
+        // First sample (initial baseline)
+        let first = sampler.sample()
+        #expect(first.isMeasuringCPU)
+        #expect(first.topMemory.count <= 6)
+        
+        // Memory should be sorted descending
+        if first.topMemory.count > 1 {
+            for i in 0..<(first.topMemory.count - 1) {
+                #expect(first.topMemory[i].memoryBytes >= first.topMemory[i + 1].memoryBytes)
+            }
+        }
+        
+        // Every finalist must have a valid non-empty name and positive PID
+        for item in first.topMemory {
+            #expect(!item.name.isEmpty)
+            #expect(item.pid > 0)
+        }
+        
+        // Second sample (with CPU deltas computed)
+        let second = sampler.sample()
+        #expect(!second.isMeasuringCPU)
+        
+        // CPU should be sorted descending
+        if second.topCPU.count > 1 {
+            for i in 0..<(second.topCPU.count - 1) {
+                #expect(second.topCPU[i].cpuUsagePercent >= second.topCPU[i + 1].cpuUsagePercent)
+            }
+        }
+        
+        for item in second.topCPU {
+            #expect(!item.name.isEmpty)
+            #expect(item.pid > 0)
+        }
+    }
+}
+
+
 
