@@ -28,48 +28,62 @@ public struct SparklineView: View {
             let visibleData = Array(data.suffix(effectiveCapacity))
             guard !visibleData.isEmpty else { return }
 
-            let maxVal: Double
-            if let explicitMax = maxScale, explicitMax > 0 {
-                maxVal = explicitMax
-            } else {
-                maxVal = 100.0
-            }
+            let maxVal: Double = (maxScale != nil && maxScale! > 0) ? maxScale! : 100.0
 
+            let topInset: CGFloat = 2.0 * pixel
             let baselineY = floor((size.height - 2.0 * pixel) * scale) * pixel
-            let usableHeight = max(baselineY - (2.0 * pixel), 1.0)
-            let totalSlots = CGFloat(effectiveCapacity)
-            let slotWidth = size.width / totalSlots
-            let startX = max(0, size.width - CGFloat(visibleData.count) * slotWidth)
+            let usableHeight = max(baselineY - topInset, 1.0)
 
-            var idleBarsPath = Path()
-            var activeBarsPath = Path()
+            let stepX = size.width / CGFloat(effectiveCapacity - 1)
+            let startX = max(0, size.width - CGFloat(visibleData.count - 1) * stepX)
+
+            var points: [CGPoint] = []
+            points.reserveCapacity(visibleData.count)
 
             for (index, value) in visibleData.enumerated() {
-                let rawX = startX + (CGFloat(index) + 0.5) * slotWidth
-                let barX = (floor(rawX * scale) + 0.5) * pixel
-
-                let normalized = max(0.0, min(1.0, value / maxVal))
-                let rawHeight = CGFloat(normalized) * usableHeight
-                // Minimum 1-pixel tick so idle telemetry creates visible comb teeth
-                let barHeight = max(pixel, ceil(rawHeight * scale) * pixel)
-                let barY = baselineY - barHeight
-
-                if normalized < 0.05 {
-                    idleBarsPath.move(to: CGPoint(x: barX, y: baselineY))
-                    idleBarsPath.addLine(to: CGPoint(x: barX, y: barY))
-                } else {
-                    activeBarsPath.move(to: CGPoint(x: barX, y: baselineY))
-                    activeBarsPath.addLine(to: CGPoint(x: barX, y: barY))
-                }
+                let rawX = startX + CGFloat(index) * stepX
+                let alignedX = floor(rawX * scale) * pixel
+                let normalized = CGFloat(max(0.0, min(1.0, value / maxVal)))
+                let rawY = baselineY - (normalized * usableHeight)
+                let alignedY = floor(rawY * scale + 0.5) * pixel
+                points.append(CGPoint(x: alignedX, y: alignedY))
             }
 
-            let strokeStyle = StrokeStyle(lineWidth: pixel, lineCap: .butt)
-            if !idleBarsPath.isEmpty {
-                context.stroke(idleBarsPath, with: .color(color.opacity(0.38)), style: strokeStyle)
+            guard points.count >= 2 else { return }
+
+            // Area fill with subtle vertical gradient fading toward baseline
+            var areaPath = Path()
+            areaPath.move(to: CGPoint(x: points[0].x, y: baselineY))
+            areaPath.addLine(to: points[0])
+            for i in 1..<points.count {
+                areaPath.addLine(to: points[i])
             }
-            if !activeBarsPath.isEmpty {
-                context.stroke(activeBarsPath, with: .color(color.opacity(0.85)), style: strokeStyle)
+            areaPath.addLine(to: CGPoint(x: points[points.count - 1].x, y: baselineY))
+            areaPath.closeSubpath()
+
+            let fillShading = GraphicsContext.Shading.linearGradient(
+                Gradient(colors: [
+                    color.opacity(0.35),
+                    color.opacity(0.08)
+                ]),
+                startPoint: CGPoint(x: 0, y: topInset),
+                endPoint: CGPoint(x: 0, y: baselineY)
+            )
+            context.fill(areaPath, with: fillShading)
+
+            // Razor-sharp hairline boundary stroke
+            var strokePath = Path()
+            strokePath.move(to: points[0])
+            for i in 1..<points.count {
+                strokePath.addLine(to: points[i])
             }
+
+            let strokeStyle = StrokeStyle(
+                lineWidth: pixel,
+                lineCap: .round,
+                lineJoin: .round
+            )
+            context.stroke(strokePath, with: .color(color.opacity(0.95)), style: strokeStyle)
         }
         .frame(height: 38)
         .background(
