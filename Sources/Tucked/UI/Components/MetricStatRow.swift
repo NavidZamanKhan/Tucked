@@ -14,7 +14,7 @@ public struct MetricStatRow: View {
         HStack {
             Text(label)
                 .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
             Spacer()
             Text(value)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))

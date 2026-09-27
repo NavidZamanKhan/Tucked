@@ -47,8 +47,8 @@ public struct OverviewView: View {
                 // CPU Column
                 VStack(alignment: .leading, spacing: 8) {
                     Text("CPU")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.primary)
                     
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(TuckedFormatter.formatPercent(model.systemSnapshot.cpu.totalUsage))
@@ -77,8 +77,8 @@ public struct OverviewView: View {
                 // Memory Column
                 VStack(alignment: .leading, spacing: 8) {
                     Text("MEMORY")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.primary)
                     
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(TuckedFormatter.formatPercent(model.systemSnapshot.memory.usedPercentage))
@@ -113,8 +113,8 @@ public struct OverviewView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("NETWORK")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.primary)
                     Spacer()
                     HealthPill(
                         text: model.systemSnapshot.network.status.rawValue,
@@ -122,22 +122,27 @@ public struct OverviewView: View {
                     )
                 }
                 
-                HStack(spacing: 16) {
+                HStack(spacing: 20) {
                     HStack(spacing: 4) {
                         Text("↓")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                         Text(TuckedFormatter.formatPanelRate(model.systemSnapshot.network.rxBytesPerSecond))
                             .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.primary)
                     }
+                    .frame(width: 135, alignment: .leading)
                     
                     HStack(spacing: 4) {
                         Text("↑")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                         Text(TuckedFormatter.formatPanelRate(model.systemSnapshot.network.txBytesPerSecond))
                             .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.primary)
                     }
+                    .frame(width: 135, alignment: .leading)
+                    
                     Spacer()
                 }
                 
@@ -163,15 +168,15 @@ public struct OverviewView: View {
             // Section 3: HEAVY RIGHT NOW (Two Permanent Columns: Top CPU & Top Memory)
             VStack(alignment: .leading, spacing: 8) {
                 Text("HEAVY RIGHT NOW")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
                 
                 HStack(alignment: .top, spacing: 24) {
                     // Top CPU Column
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TOP CPU")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                             .padding(.bottom, 2)
                         
                         if model.diagnosticSnapshot.isMeasuringCPUProcesses {
@@ -200,7 +205,7 @@ public struct OverviewView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("TOP MEMORY")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                             .padding(.bottom, 2)
                         
                         if model.diagnosticSnapshot.topMemoryProcesses.isEmpty {
@@ -232,7 +237,7 @@ public struct OverviewView: View {
         if let celsius = model.diagnosticSnapshot.thermal.cpuTemperatureCelsius {
             return "\(celsius)°C"
         }
-        return model.diagnosticSnapshot.thermal.state == .unavailable ? "—" : "Measuring…"
+        return model.diagnosticSnapshot.thermal.state == .unavailable ? "-" : "Measuring…"
     }
     
     private var fanLabel: String {
@@ -247,28 +252,28 @@ public struct OverviewView: View {
         if !thermal.fans.isEmpty {
             return TuckedFormatter.formatFanRPM(isFanless: false, rpms: thermal.fans.map { $0.rpm })
         }
-        return thermal.state == .unavailable ? "—" : "Measuring…"
+        return thermal.state == .unavailable ? "-" : "Measuring…"
     }
     
     private var formattedLatency: String {
         if let ms = model.diagnosticSnapshot.networkDiagnostics.latencyMs {
             return "\(Int(round(ms))) ms"
         }
-        return model.diagnosticSnapshot.networkDiagnostics.isMeasuring ? "Measuring…" : "—"
+        return model.diagnosticSnapshot.networkDiagnostics.isMeasuring ? "Measuring…" : "-"
     }
     
     private var formattedJitter: String {
         if let ms = model.diagnosticSnapshot.networkDiagnostics.jitterMs {
             return "\(Int(round(ms))) ms"
         }
-        return model.diagnosticSnapshot.networkDiagnostics.isMeasuring ? "Measuring…" : "—"
+        return model.diagnosticSnapshot.networkDiagnostics.isMeasuring ? "Measuring…" : "-"
     }
     
     private var formattedSignal: String {
         if let rssi = model.diagnosticSnapshot.networkDiagnostics.wifiRSSI {
             return "\(rssi) dBm"
         }
-        return "—"
+        return "-"
     }
     
     private var formattedLink: String {
@@ -279,7 +284,7 @@ public struct OverviewView: View {
                 return "\(Int(round(mbps))) Mbps"
             }
         }
-        return "—"
+        return "-"
     }
     
     private func statusColor(for status: CPUHealthStatus) -> Color {

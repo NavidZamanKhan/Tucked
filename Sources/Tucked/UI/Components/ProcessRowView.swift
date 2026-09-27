@@ -28,7 +28,7 @@ public struct ProcessRowView: View {
             // Metric value with monospaced digits
             Text(formattedMetric)
                 .font(.system(size: 12, weight: .regular, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
             
             // Reserved space for Quit button (16pt wide) so row never shifts
             ZStack {

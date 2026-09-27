@@ -60,12 +60,12 @@ struct FormattersTests {
     
     @Test func testTemperatureFormatting() {
         #expect(TuckedFormatter.formatTemperature(54) == "54°C")
-        #expect(TuckedFormatter.formatTemperature(nil) == "—")
+        #expect(TuckedFormatter.formatTemperature(nil) == "-")
     }
     
     @Test func testFanFormatting() {
         #expect(TuckedFormatter.formatFanRPM(isFanless: true, rpms: []) == "Fanless")
-        #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: []) == "—")
+        #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: []) == "-")
         #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: [1840]) == "1840 RPM")
         #expect(TuckedFormatter.formatFanRPM(isFanless: false, rpms: [1840, 1920]) == "1840 / 1920 RPM")
     }

@@ -1,17 +1,84 @@
 import Foundation
 import AppKit
 
+/// Pixel-perfect view drawing fixed independent metric slots so numbers never push adjacent stats.
+final class TuckedStatusView: NSView {
+    var cpuPercent: Int = 0 { didSet { needsDisplay = true } }
+    var ramPercent: Int = 0 { didSet { needsDisplay = true } }
+    var downVal: String = "0" { didSet { needsDisplay = true } }
+    var downUnit: String = "K" { didSet { needsDisplay = true } }
+    var upVal: String = "0" { didSet { needsDisplay = true } }
+    var upUnit: String = "K" { didSet { needsDisplay = true } }
+    
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Transparent to all mouse clicks so the underlying NSStatusBarButton receives clicks
+        return nil
+    }
+    
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        
+        let textColor = NSColor.labelColor
+        let separatorColor = NSColor.labelColor.withAlphaComponent(0.35)
+        
+        let labelFont = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
+        let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .medium)
+        let separatorFont = NSFont.systemFont(ofSize: 10, weight: .regular)
+        let arrowFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
+        let unitFont = NSFont.systemFont(ofSize: 8.5, weight: .semibold)
+        
+        let yBaseline = floor((bounds.height - 14) / 2) + 1.0
+        
+        // Slot 1: CPU (fixed at x: 8, buffer width: 48)
+        let cpuAttr = NSMutableAttributedString()
+        cpuAttr.append(NSAttributedString(string: "CPU ", attributes: [.font: labelFont, .foregroundColor: textColor]))
+        cpuAttr.append(NSAttributedString(string: "\(cpuPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
+        cpuAttr.draw(at: NSPoint(x: 8, y: yBaseline))
+        
+        // Separator 1 (fixed at x: 58)
+        let sep1 = NSAttributedString(string: "·", attributes: [.font: separatorFont, .foregroundColor: separatorColor])
+        sep1.draw(at: NSPoint(x: 58, y: yBaseline))
+        
+        // Slot 2: RAM (fixed at x: 68, buffer width: 48)
+        let ramAttr = NSMutableAttributedString()
+        ramAttr.append(NSAttributedString(string: "RAM ", attributes: [.font: labelFont, .foregroundColor: textColor]))
+        ramAttr.append(NSAttributedString(string: "\(ramPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
+        ramAttr.draw(at: NSPoint(x: 68, y: yBaseline))
+        
+        // Separator 2 (fixed at x: 118)
+        let sep2 = NSAttributedString(string: "·", attributes: [.font: separatorFont, .foregroundColor: separatorColor])
+        sep2.draw(at: NSPoint(x: 118, y: yBaseline))
+        
+        // Slot 3: Download (fixed at x: 128, buffer width: 36)
+        let downAttr = NSMutableAttributedString()
+        downAttr.append(NSAttributedString(string: "↓", attributes: [.font: arrowFont, .foregroundColor: textColor, .baselineOffset: 0.5]))
+        downAttr.append(NSAttributedString(string: downVal, attributes: [.font: numberFont, .foregroundColor: textColor]))
+        downAttr.append(NSAttributedString(string: downUnit, attributes: [.font: unitFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
+        downAttr.draw(at: NSPoint(x: 128, y: yBaseline))
+        
+        // Slot 4: Upload (fixed at x: 166, buffer width: 36)
+        let upAttr = NSMutableAttributedString()
+        upAttr.append(NSAttributedString(string: "↑", attributes: [.font: arrowFont, .foregroundColor: textColor, .baselineOffset: 0.5]))
+        upAttr.append(NSAttributedString(string: upVal, attributes: [.font: numberFont, .foregroundColor: textColor]))
+        upAttr.append(NSAttributedString(string: upUnit, attributes: [.font: unitFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
+        upAttr.draw(at: NSPoint(x: 166, y: yBaseline))
+    }
+}
+
 /// Controls the single continuous menu bar NSStatusItem.
 @MainActor
 public final class StatusItemController: NSObject {
     public let statusItem: NSStatusItem
+    private let statusView: TuckedStatusView
     private weak var shelfController: ShelfController?
     private let contextMenu = NSMenu()
     
     public init(shelfController: ShelfController) {
+        let totalWidth: CGFloat = 205
         // Fixed length provides a stable buffer zone on both sides so number fluctuations do not move the app
-        self.statusItem = NSStatusBar.system.statusItem(withLength: 195)
+        self.statusItem = NSStatusBar.system.statusItem(withLength: totalWidth)
         self.shelfController = shelfController
+        self.statusView = TuckedStatusView(frame: NSRect(x: 0, y: 0, width: totalWidth, height: 22))
         super.init()
         
         setupButton()
@@ -23,6 +90,9 @@ public final class StatusItemController: NSObject {
         button.target = self
         button.action = #selector(handleButtonClick(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        statusView.frame = button.bounds
+        statusView.autoresizingMask = [.width, .height]
+        button.addSubview(statusView)
         updateTitle(cpuPercent: 0, ramPercent: 0, rxRate: 0, txRate: 0)
     }
     
@@ -60,61 +130,13 @@ public final class StatusItemController: NSObject {
         let (downVal, downUnit) = TuckedFormatter.menuBarRateComponents(rxRate)
         let (upVal, upUnit) = TuckedFormatter.menuBarRateComponents(txRate)
         
-        let labelFont = NSFont.systemFont(ofSize: 10.5, weight: .regular)
-        let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .medium)
-        let separatorFont = NSFont.systemFont(ofSize: 10, weight: .regular)
-        let arrowFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
-        let unitFont = NSFont.systemFont(ofSize: 8.5, weight: .semibold)
+        statusView.cpuPercent = cpuPercent
+        statusView.ramPercent = ramPercent
+        statusView.downVal = downVal
+        statusView.downUnit = downUnit
+        statusView.upVal = upVal
+        statusView.upUnit = upUnit
         
-        let primaryColor = NSColor.labelColor
-        let secondaryColor = NSColor.secondaryLabelColor
-        let separatorColor = NSColor.tertiaryLabelColor
-        
-        let attributed = NSMutableAttributedString()
-        
-        func append(_ text: String, font: NSFont, color: NSColor, baselineOffset: CGFloat = 0) {
-            var attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: color
-            ]
-            if baselineOffset != 0 {
-                attrs[.baselineOffset] = baselineOffset
-            }
-            attributed.append(NSAttributedString(string: text, attributes: attrs))
-        }
-        
-        // CPU
-        append("CPU ", font: labelFont, color: secondaryColor)
-        append("\(cpuPercent)", font: numberFont, color: primaryColor)
-        
-        // Separator
-        append("  ·  ", font: separatorFont, color: separatorColor)
-        
-        // RAM
-        append("RAM ", font: labelFont, color: secondaryColor)
-        append("\(ramPercent)", font: numberFont, color: primaryColor)
-        
-        // Separator
-        append("  ·  ", font: separatorFont, color: separatorColor)
-        
-        // Download: ↓ 13K
-        append("↓", font: arrowFont, color: secondaryColor, baselineOffset: 0.5)
-        append(downVal, font: numberFont, color: primaryColor)
-        append(downUnit, font: unitFont, color: secondaryColor, baselineOffset: 0.8)
-        
-        append(" ", font: labelFont, color: secondaryColor)
-        
-        // Upload: ↑ 151K
-        append("↑", font: arrowFont, color: secondaryColor, baselineOffset: 0.5)
-        append(upVal, font: numberFont, color: primaryColor)
-        append(upUnit, font: unitFont, color: secondaryColor, baselineOffset: 0.8)
-        
-        // Center alignment so content expands symmetrically in the buffer zone
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        attributed.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: attributed.length))
-        
-        button.attributedTitle = attributed
         button.toolTip = "Tucked: CPU \(cpuPercent)%, RAM \(ramPercent)%, Download \(downVal)\(downUnit)/s, Upload \(upVal)\(upUnit)/s"
     }
     

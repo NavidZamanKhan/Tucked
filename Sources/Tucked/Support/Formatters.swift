@@ -84,7 +84,7 @@ public enum TuckedFormatter {
     
     /// Formatted temperature (integer Celsius, e.g. 54°C).
     public static func formatTemperature(_ celsius: Int?) -> String {
-        guard let celsius else { return "—" }
+        guard let celsius else { return "-" }
         return "\(celsius)°C"
     }
     
@@ -94,7 +94,7 @@ public enum TuckedFormatter {
             return "Fanless"
         }
         guard !rpms.isEmpty else {
-            return "—"
+            return "-"
         }
         if rpms.count == 1 {
             return "\(rpms[0]) RPM"
