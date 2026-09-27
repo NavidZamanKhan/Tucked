@@ -19,19 +19,20 @@ final class TuckedStatusView: NSView {
         super.draw(dirtyRect)
         
         let textColor = NSColor.labelColor
+        let labelColor = NSColor.labelColor.withAlphaComponent(0.75)
         let separatorColor = NSColor.labelColor.withAlphaComponent(0.35)
         
-        let labelFont = NSFont.systemFont(ofSize: 8.5, weight: .bold)
+        let labelFont = NSFont.systemFont(ofSize: 8.5, weight: .regular)
         let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .medium)
         let separatorFont = NSFont.systemFont(ofSize: 10, weight: .regular)
-        let arrowFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
-        let unitFont = NSFont.systemFont(ofSize: 8.5, weight: .semibold)
+        let arrowFont = NSFont.systemFont(ofSize: 9.5, weight: .regular)
+        let unitFont = NSFont.systemFont(ofSize: 8.5, weight: .regular)
         
         let yBaseline = floor((bounds.height - 14) / 2) + 1.0
         
         // Slot 1: CPU (fixed at x: 8, buffer width: 48)
         let cpuAttr = NSMutableAttributedString()
-        cpuAttr.append(NSAttributedString(string: "CPU ", attributes: [.font: labelFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
+        cpuAttr.append(NSAttributedString(string: "CPU ", attributes: [.font: labelFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
         cpuAttr.append(NSAttributedString(string: "\(cpuPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
         cpuAttr.draw(at: NSPoint(x: 8, y: yBaseline))
         
@@ -41,7 +42,7 @@ final class TuckedStatusView: NSView {
         
         // Slot 2: RAM (fixed at x: 68, buffer width: 48)
         let ramAttr = NSMutableAttributedString()
-        ramAttr.append(NSAttributedString(string: "RAM ", attributes: [.font: labelFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
+        ramAttr.append(NSAttributedString(string: "RAM ", attributes: [.font: labelFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
         ramAttr.append(NSAttributedString(string: "\(ramPercent)", attributes: [.font: numberFont, .foregroundColor: textColor]))
         ramAttr.draw(at: NSPoint(x: 68, y: yBaseline))
         
@@ -51,16 +52,16 @@ final class TuckedStatusView: NSView {
         
         // Slot 3: Download (fixed at x: 128, buffer width: 36)
         let downAttr = NSMutableAttributedString()
-        downAttr.append(NSAttributedString(string: "↓", attributes: [.font: arrowFont, .foregroundColor: textColor, .baselineOffset: 0.5]))
+        downAttr.append(NSAttributedString(string: "↓", attributes: [.font: arrowFont, .foregroundColor: labelColor, .baselineOffset: 0.5, .kern: 1.5]))
         downAttr.append(NSAttributedString(string: downVal, attributes: [.font: numberFont, .foregroundColor: textColor]))
-        downAttr.append(NSAttributedString(string: downUnit, attributes: [.font: unitFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
+        downAttr.append(NSAttributedString(string: downUnit, attributes: [.font: unitFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
         downAttr.draw(at: NSPoint(x: 128, y: yBaseline))
         
         // Slot 4: Upload (fixed at x: 166, buffer width: 36)
         let upAttr = NSMutableAttributedString()
-        upAttr.append(NSAttributedString(string: "↑", attributes: [.font: arrowFont, .foregroundColor: textColor, .baselineOffset: 0.5]))
+        upAttr.append(NSAttributedString(string: "↑", attributes: [.font: arrowFont, .foregroundColor: labelColor, .baselineOffset: 0.5, .kern: 1.5]))
         upAttr.append(NSAttributedString(string: upVal, attributes: [.font: numberFont, .foregroundColor: textColor]))
-        upAttr.append(NSAttributedString(string: upUnit, attributes: [.font: unitFont, .foregroundColor: textColor, .baselineOffset: 0.8]))
+        upAttr.append(NSAttributedString(string: upUnit, attributes: [.font: unitFont, .foregroundColor: labelColor, .baselineOffset: 0.8]))
         upAttr.draw(at: NSPoint(x: 166, y: yBaseline))
     }
 }
