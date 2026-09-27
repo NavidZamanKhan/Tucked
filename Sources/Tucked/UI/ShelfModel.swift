@@ -86,16 +86,7 @@ public final class ShelfModel: ObservableObject {
     }
     
     public func updateDiagnosticSnapshot(_ snapshot: DiagnosticSnapshot) {
-        let wasMeasuring = self.diagnosticSnapshot.isMeasuringCPUProcesses && self.diagnosticSnapshot.topCPUProcesses.isEmpty
-        let isNowReady = !snapshot.isMeasuringCPUProcesses || !snapshot.topCPUProcesses.isEmpty
-        
-        if wasMeasuring && isNowReady {
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
-                self.diagnosticSnapshot = snapshot
-            }
-        } else {
-            self.diagnosticSnapshot = snapshot
-        }
+        self.diagnosticSnapshot = snapshot
     }
     
     public func requestQuit(for item: ProcessItem) {

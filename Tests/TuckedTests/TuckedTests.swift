@@ -454,4 +454,26 @@ struct ShelfModelActionTests {
     }
 }
 
+@Suite("ProcessSkeletonView Tests")
+struct ProcessSkeletonViewTests {
+    @Test @MainActor func testProcessSkeletonRowViewInitialization() {
+        let view = ProcessSkeletonRowView(nameWidth: 90, metricWidth: 40)
+        #expect(view.nameWidth == 90)
+        #expect(view.metricWidth == 40)
+        
+        let defaultView = ProcessSkeletonRowView()
+        #expect(defaultView.nameWidth == 80)
+        #expect(defaultView.metricWidth == 34)
+    }
+    
+    @Test @MainActor func testShelfModelResetDiagnosticSnapshotState() {
+        let model = ShelfModel()
+        model.resetDiagnosticSnapshot()
+        #expect(model.diagnosticSnapshot.isMeasuringCPUProcesses == true)
+        #expect(model.diagnosticSnapshot.topCPUProcesses.isEmpty)
+        #expect(model.diagnosticSnapshot.topMemoryProcesses.isEmpty)
+    }
+}
+
+
 

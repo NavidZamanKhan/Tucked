@@ -4,6 +4,9 @@ import SwiftUI
 public struct OverviewView: View {
     @ObservedObject public var model: ShelfModel
     
+    private let skeletonCPUWidths: [CGFloat] = [85, 110, 70, 95, 60, 80]
+    private let skeletonMemoryWidths: [CGFloat] = [100, 75, 90, 65, 115, 80]
+    
     public init(model: ShelfModel) {
         self.model = model
     }
@@ -205,70 +208,73 @@ public struct OverviewView: View {
                 }
             }
             
-            if !model.diagnosticSnapshot.isMeasuringCPUProcesses || !model.diagnosticSnapshot.topCPUProcesses.isEmpty {
-                Divider()
-                    .transition(.opacity)
+            Divider()
+            
+            // Section 3: HEAVY RIGHT NOW (Two Permanent Columns: Top CPU & Top Memory)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("HEAVY RIGHT NOW")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
                 
-                // Section 3: HEAVY RIGHT NOW (Two Permanent Columns: Top CPU & Top Memory)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("HEAVY RIGHT NOW")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.primary)
-                    
-                    HStack(alignment: .top, spacing: 24) {
-                        // Top CPU Column
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("TOP CPU")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.primary)
-                                .padding(.bottom, 2)
-                            
-                            if model.diagnosticSnapshot.topCPUProcesses.isEmpty {
-                                Text("No heavy CPU processes")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                                    .frame(height: 120, alignment: .topLeading)
-                            } else {
-                                ForEach(model.diagnosticSnapshot.topCPUProcesses) { item in
-                                    ProcessRowView(
-                                        item: item,
-                                        formattedMetric: "\(Int(round(item.cpuUsagePercent)))%",
-                                        onQuit: { p in model.requestQuit(for: p) }
-                                    )
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                HStack(alignment: .top, spacing: 24) {
+                    // Top CPU Column
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TOP CPU")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.primary)
+                            .padding(.bottom, 2)
                         
-                        // Top Memory Column
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("TOP MEMORY")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.primary)
-                                .padding(.bottom, 2)
-                            
-                            if model.diagnosticSnapshot.topMemoryProcesses.isEmpty {
-                                Text("No heavy memory processes")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                                    .frame(height: 120, alignment: .topLeading)
-                            } else {
-                                ForEach(model.diagnosticSnapshot.topMemoryProcesses) { item in
-                                    ProcessRowView(
-                                        item: item,
-                                        formattedMetric: TuckedFormatter.formatBytes(item.memoryBytes),
-                                        onQuit: { p in model.requestQuit(for: p) }
-                                    )
-                                }
+                        if model.diagnosticSnapshot.isMeasuringCPUProcesses && model.diagnosticSnapshot.topCPUProcesses.isEmpty {
+                            ForEach(0..<6, id: \.self) { index in
+                                ProcessSkeletonRowView(nameWidth: skeletonCPUWidths[index], metricWidth: 32)
+                            }
+                        } else if model.diagnosticSnapshot.topCPUProcesses.isEmpty {
+                            Text("No heavy CPU processes")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .frame(height: 140, alignment: .topLeading)
+                        } else {
+                            ForEach(model.diagnosticSnapshot.topCPUProcesses) { item in
+                                ProcessRowView(
+                                    item: item,
+                                    formattedMetric: "\(Int(round(item.cpuUsagePercent)))%",
+                                    onQuit: { p in model.requestQuit(for: p) }
+                                )
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    
+                    // Top Memory Column
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TOP MEMORY")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.primary)
+                            .padding(.bottom, 2)
+                        
+                        if model.diagnosticSnapshot.isMeasuringCPUProcesses && model.diagnosticSnapshot.topMemoryProcesses.isEmpty {
+                            ForEach(0..<6, id: \.self) { index in
+                                ProcessSkeletonRowView(nameWidth: skeletonMemoryWidths[index], metricWidth: 42)
+                            }
+                        } else if model.diagnosticSnapshot.topMemoryProcesses.isEmpty {
+                            Text("No heavy memory processes")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .frame(height: 140, alignment: .topLeading)
+                        } else {
+                            ForEach(model.diagnosticSnapshot.topMemoryProcesses) { item in
+                                ProcessRowView(
+                                    item: item,
+                                    formattedMetric: TuckedFormatter.formatBytes(item.memoryBytes),
+                                    onQuit: { p in model.requestQuit(for: p) }
+                                )
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .move(edge: .top)),
-                    removal: .opacity
-                ))
+                .animation(.easeInOut(duration: 0.22), value: model.diagnosticSnapshot.topCPUProcesses.isEmpty)
+                .animation(.easeInOut(duration: 0.22), value: model.diagnosticSnapshot.isMeasuringCPUProcesses)
             }
         }
         .padding(18)
