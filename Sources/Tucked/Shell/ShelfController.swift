@@ -250,6 +250,12 @@ public final class ShelfController: NSObject {
         panel.setFrame(targetFrame, display: false)
     }
     
+    public private(set) var lastDismissalTime: Date = .distantPast
+    
+    public func recordDismissal() {
+        lastDismissalTime = Date()
+    }
+    
     // MARK: - Dismissal Handling
     
     private func installEventMonitors() {
@@ -267,10 +273,19 @@ public final class ShelfController: NSObject {
             }
             
             if event.type == .leftMouseDown || event.type == .rightMouseDown {
-                if let eventWindow = event.window, eventWindow !== self.panel {
-                    if let button = self.statusItemButton, let window = button.window, eventWindow === window {
+                if let eventWindow = event.window {
+                    if eventWindow === self.panel {
                         return event
                     }
+                    if let button = self.statusItemButton, let window = button.window, eventWindow === window {
+                        self.recordDismissal()
+                        self.close()
+                        return event
+                    }
+                    Task { @MainActor [weak self] in
+                        self?.close()
+                    }
+                } else {
                     Task { @MainActor [weak self] in
                         self?.close()
                     }
@@ -286,8 +301,11 @@ public final class ShelfController: NSObject {
             
             let mouseLocation = NSEvent.mouseLocation
             if let button = self.statusItemButton, let window = button.window {
-                let buttonScreenRect = window.convertToScreen(button.convert(button.bounds, to: nil))
-                if buttonScreenRect.contains(mouseLocation) {
+                if window.frame.contains(mouseLocation) {
+                    Task { @MainActor [weak self] in
+                        self?.recordDismissal()
+                        self?.close()
+                    }
                     return
                 }
             }

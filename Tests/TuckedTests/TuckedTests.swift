@@ -570,6 +570,25 @@ struct HealthStatusIndicatorTests {
         let offline = HealthStatusIndicator.network(status: .offline)
         #expect(offline.selectedIndex == 2)
     }
+    
+    @Test @MainActor func testIndicatorAlignment() {
+        let cpu = HealthStatusIndicator.cpu(status: .normal, alignment: .trailing)
+        #expect(cpu.alignment == .trailing)
+        let memory = HealthStatusIndicator.memory(status: .heavy, alignment: .trailing)
+        #expect(memory.alignment == .trailing)
+        let network = HealthStatusIndicator.network(status: .stable, alignment: .trailing)
+        #expect(network.alignment == .trailing)
+    }
+    
+    @Test @MainActor func testStatusItemDismissalRecording() {
+        let model = ShelfModel()
+        let coordinator = MonitoringCoordinator()
+        let controller = ShelfController(model: model, coordinator: coordinator)
+        
+        #expect(controller.lastDismissalTime == .distantPast)
+        controller.recordDismissal()
+        #expect(Date().timeIntervalSince(controller.lastDismissalTime) < 1.0)
+    }
 }
 
 

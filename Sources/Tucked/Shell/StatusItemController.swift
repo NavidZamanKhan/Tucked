@@ -153,6 +153,9 @@ public final class StatusItemController: NSObject {
             statusItem.button?.performClick(nil)
             statusItem.menu = nil
         } else {
+            if let shelf = shelfController, Date().timeIntervalSince(shelf.lastDismissalTime) < 0.25 {
+                return
+            }
             shelfController?.toggle(relativeTo: sender)
         }
     }

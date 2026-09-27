@@ -53,13 +53,14 @@ public struct OverviewView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.primary)
                     
-                    HStack(alignment: .center, spacing: 8) {
+                    HStack(alignment: .center) {
                         Text(TuckedFormatter.formatPercent(model.systemSnapshot.cpu.totalUsage))
                             .font(.system(size: 26, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                         
-                        HealthStatusIndicator.cpu(status: model.systemSnapshot.cpu.status)
                         Spacer()
+                        
+                        HealthStatusIndicator.cpu(status: model.systemSnapshot.cpu.status, alignment: .trailing)
                     }
                     
                     SparklineView(data: model.cpuHistory, color: .blue)
@@ -80,13 +81,14 @@ public struct OverviewView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.primary)
                     
-                    HStack(alignment: .center, spacing: 8) {
+                    HStack(alignment: .center) {
                         Text(TuckedFormatter.formatPercent(model.systemSnapshot.memory.usedPercentage))
                             .font(.system(size: 26, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                         
-                        HealthStatusIndicator.memory(status: model.systemSnapshot.memory.status)
                         Spacer()
+                        
+                        HealthStatusIndicator.memory(status: model.systemSnapshot.memory.status, alignment: .trailing)
                     }
                     
                     SparklineView(data: model.memoryHistory, color: .purple)
