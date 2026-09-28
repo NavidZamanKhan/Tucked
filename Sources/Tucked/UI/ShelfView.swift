@@ -24,14 +24,6 @@ public struct ShelfView: View {
         }
     }
     
-    private var shadowColor: Color {
-        if model.isEffectiveDark {
-            return Color.black.opacity(0.45)
-        } else {
-            return Color.black.opacity(0.15)
-        }
-    }
-    
     public var body: some View {
         ZStack(alignment: .top) {
             // Click catcher outside the pill but inside window padding
@@ -71,8 +63,6 @@ public struct ShelfView: View {
                     .stroke(pillBorderColor, lineWidth: 0.5)
             )
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: shadowColor, radius: 24, x: 0, y: 12)
-            .shadow(color: shadowColor.opacity(0.5), radius: 6, x: 0, y: 2)
             .scaleEffect(
                 x: model.isShelfPresented ? 1.0 : 0.35,
                 y: model.isShelfPresented ? 1.0 : 0.06,
