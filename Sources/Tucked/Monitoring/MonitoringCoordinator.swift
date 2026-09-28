@@ -244,27 +244,37 @@ public final class MonitoringCoordinator: @unchecked Sendable {
     // MARK: - Sleep & Wake
     
     public func handleSystemSleep() {
-        TuckedLog.sampling.info("System will sleep - resetting baselines and stopping diagnostics")
+        TuckedLog.sampling.info("System will sleep - stopping sampling and diagnostics")
         shelfDidClose()
+        stopPassiveHeartbeat()
         cpuSampler.resetBaseline()
         networkSampler.resetBaseline()
     }
     
     public func handleSystemWake() {
-        TuckedLog.sampling.info("System did wake - refreshing baselines")
+        TuckedLog.sampling.info("System did wake - preserving history, marking discontinuity, and refreshing baselines")
+        // Preserve in-memory history across sleep and insert one discontinuity gap before post-wake samples
+        historyStore.markDiscontinuity()
+        
+        // Re-establish baselines immediately to eliminate bogus wake spikes
         cpuSampler.resetBaseline()
+        _ = cpuSampler.sample()
         networkSampler.resetBaseline()
+        _ = networkSampler.sample()
         memoryPressureMonitor.reconcile()
-        historyStore.clear()
+        
+        // Resume passive sampling with a 1-second interval so the first tick measures true post-wake delta
+        startPassiveHeartbeat(delay: 1.0)
     }
     
     // MARK: - Passive Loop (~1 Hz)
     
-    private func startPassiveHeartbeat() {
+    private func startPassiveHeartbeat(delay: TimeInterval = 0.0) {
         stopPassiveHeartbeat()
         
         let timer = DispatchSource.makeTimerSource(queue: coordinatorQueue)
-        timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
+        let deadline: DispatchTime = delay > 0 ? (.now() + delay) : .now()
+        timer.schedule(deadline: deadline, repeating: .seconds(1), leeway: .milliseconds(100))
         timer.setEventHandler { [weak self] in
             self?.tickPassive()
         }

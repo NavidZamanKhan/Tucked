@@ -92,6 +92,30 @@ public enum TuckedFormatter {
         return "\(celsius)°C"
     }
     
+    /// Formatted fan capability matching precise lifecycle states.
+    public static func formatFanCapability(_ state: FanCapabilityState) -> String {
+        switch state {
+        case .measuring:
+            return "Measuring…"
+        case .fanless:
+            return "Fanless"
+        case .active(let rpms):
+            let joined = rpms.map { "\($0)" }.joined(separator: " / ")
+            return "\(joined) RPM"
+        case .zeroRPM(let rpms):
+            if rpms.count <= 1 {
+                return "0 RPM"
+            } else {
+                let joined = rpms.map { "\($0)" }.joined(separator: " / ")
+                return "\(joined) RPM"
+            }
+        case .notFound:
+            return "Not Found"
+        case .indeterminate:
+            return "\u{2014}"
+        }
+    }
+
     /// Formatted fan speed.
     public static func formatFanRPM(isFanless: Bool, rpms: [Int]) -> String {
         if isFanless {

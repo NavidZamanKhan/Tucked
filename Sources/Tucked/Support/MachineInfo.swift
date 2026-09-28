@@ -1,5 +1,11 @@
 import Foundation
 
+public enum FanHardwareEvidence: Sendable, Equatable {
+    case fanless
+    case hasFans
+    case indeterminate
+}
+
 /// Native hardware and system specification provider using read-only Darwin sysctl calls.
 public struct MachineInfo: Sendable {
     public let model: String
@@ -9,6 +15,22 @@ public struct MachineInfo: Sendable {
     public let osVersion: String
     public let osBuild: String
     public let architecture: String
+    
+    public var fanHardwareEvidence: FanHardwareEvidence {
+        let m = model.lowercased()
+        if m.contains("air") || m == "mac14,2" || m == "mac14,15" || m == "mac15,2" || m == "mac15,12" || m == "mac15,13" {
+            return .fanless
+        }
+        if m.contains("pro") || m.contains("mini") || m.contains("studio") || m.contains("imac") {
+            return .hasFans
+        }
+        if m == "mac13,1" || m == "mac13,2" || m == "mac14,3" || m == "mac14,5" || m == "mac14,6" ||
+           m == "mac14,7" || m == "mac14,8" || m == "mac14,9" || m == "mac14,10" || m == "mac14,12" ||
+           m == "mac14,13" || m == "mac14,14" || m.hasPrefix("mac15,") || m.hasPrefix("mac16,") {
+            return .hasFans
+        }
+        return .indeterminate
+    }
     
     public var formattedMemory: String {
         TuckedFormatter.formatBytes(memoryBytes) + " Unified Memory"

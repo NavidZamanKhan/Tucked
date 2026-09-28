@@ -26,6 +26,21 @@ public enum ThermalState: Sendable {
     case unavailable
 }
 
+public enum FanCapabilityState: Sendable, Equatable {
+    case measuring
+    case fanless
+    case active(rpms: [Int])
+    case zeroRPM(rpms: [Int])
+    case notFound
+    case indeterminate
+}
+
+public enum TemperatureCapabilityState: Sendable, Equatable {
+    case measuring
+    case active(celsius: Int)
+    case unavailable
+}
+
 public struct FanReading: Sendable, Identifiable {
     public let id: Int
     public let displayName: String
@@ -119,17 +134,31 @@ public struct NetworkUsageSnapshot: Sendable {
 
 public struct ThermalSnapshot: Sendable {
     public let cpuTemperatureCelsius: Int?
+    public let temperatureState: TemperatureCapabilityState
+    public let fanState: FanCapabilityState
     public let fans: [FanReading]
-    public let state: ThermalState
+    
+    public var state: ThermalState {
+        if fanState == .fanless {
+            return .fanless
+        } else if cpuTemperatureCelsius != nil || !fans.isEmpty {
+            return .supported
+        } else {
+            return .unavailable
+        }
+    }
     
     public init(
         cpuTemperatureCelsius: Int? = nil,
+        temperatureState: TemperatureCapabilityState = .measuring,
+        fanState: FanCapabilityState = .measuring,
         fans: [FanReading] = [],
-        state: ThermalState = .unavailable
+        state: ThermalState? = nil
     ) {
         self.cpuTemperatureCelsius = cpuTemperatureCelsius
+        self.temperatureState = temperatureState
+        self.fanState = fanState
         self.fans = fans
-        self.state = state
     }
 }
 

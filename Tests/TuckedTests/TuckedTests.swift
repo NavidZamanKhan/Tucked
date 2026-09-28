@@ -591,5 +591,269 @@ struct HealthStatusIndicatorTests {
     }
 }
 
+@Suite("Sleep Wake Lifecycle Tests")
+struct SleepWakeLifecycleTests {
+    @Test func testHistoryPreservedAcrossSleepWithDiscontinuity() {
+        let store = HistoryStore(capacity: 90)
+        
+        // Push 10 pre-sleep samples
+        for i in 1...10 {
+            store.append(cpu: Double(i * 5), memory: 40.0, rx: 1000.0, tx: 500.0)
+        }
+        #expect(store.samples().count == 10)
+        #expect(store.activeCPUHistory().count == 10)
+        #expect(store.cpuHistory().allSatisfy { $0 != nil })
+        
+        // System sleeps and wakes: insert discontinuity
+        store.markDiscontinuity()
+        
+        // Count should be 11 (10 pre-sleep + 1 discontinuity gap)
+        #expect(store.samples().count == 11)
+        let history = store.cpuHistory()
+        #expect(history.count == 11)
+        #expect(history[10] == nil) // Discontinuity gap slot is nil
+        #expect(history[0] == 5.0)   // Pre-sleep samples preserved
+        #expect(history[9] == 50.0)
+        
+        // Post-wake first sample arrives
+        store.append(cpu: 12.0, memory: 41.0, rx: 2000.0, tx: 800.0)
+        
+        #expect(store.samples().count == 12)
+        let postWakeHistory = store.cpuHistory()
+        #expect(postWakeHistory.count == 12)
+        #expect(postWakeHistory[9] == 50.0) // Last pre-sleep
+        #expect(postWakeHistory[10] == nil) // Gap
+        #expect(postWakeHistory[11] == 12.0) // First post-wake
+        
+        // Duplicate consecutive discontinuities are prevented
+        store.markDiscontinuity()
+        #expect(store.samples().count == 13)
+        store.markDiscontinuity()
+        #expect(store.samples().count == 13) // Not duplicated
+    }
+    
+    @Test func testDiscontinuityNotInsertedOnEmptyHistory() {
+        let store = HistoryStore(capacity: 90)
+        #expect(store.samples().isEmpty)
+        store.markDiscontinuity()
+        #expect(store.samples().isEmpty)
+    }
+    
+    @Test func testCoordinatorSleepWakePreservesHistory() {
+        let coordinator = MonitoringCoordinator()
+        let store = coordinator.historyStore
+        
+        // Add pre-sleep samples
+        store.append(cpu: 25.0, memory: 50.0, rx: 5000, tx: 2000)
+        store.append(cpu: 30.0, memory: 50.0, rx: 6000, tx: 2500)
+        #expect(store.samples().count == 2)
+        
+        // Sleep stops sampling
+        coordinator.handleSystemSleep()
+        #expect(store.samples().count == 2)
+        
+        // Wake preserves history and inserts discontinuity
+        coordinator.handleSystemWake()
+        #expect(store.samples().count == 3)
+        #expect(store.cpuHistory()[2] == nil)
+        #expect(store.cpuHistory()[0] == 25.0)
+        #expect(store.cpuHistory()[1] == 30.0)
+        
+        coordinator.stop()
+    }
+    
+    @Test func testNoBogusSpikesOnWakeBaselines() {
+        let cpu = CPUSampler()
+        let network = NetworkSampler()
+        
+        // Establish initial baselines
+        _ = cpu.sample()
+        _ = network.sample()
+        
+        // Simulate sleep/wake baseline resets
+        cpu.resetBaseline()
+        _ = cpu.sample() // Establishes new baseline immediately without spike
+        
+        network.resetBaseline()
+        _ = network.sample() // Establishes new network baseline
+        
+        // Next sample produces clean delta, not accumulated jump
+        let cpuSnapshot = cpu.sample()
+        #expect(cpuSnapshot.totalUsage >= 0 && cpuSnapshot.totalUsage <= 100)
+        
+        let netSnapshot = network.sample()
+        #expect(netSnapshot.rxBytesPerSecond >= 0)
+        #expect(netSnapshot.txBytesPerSecond >= 0)
+    }
+}
+
+@Suite("Fan and Thermal Capability Tests")
+struct FanAndThermalCapabilityTests {
+    @Test func testAllSixFanCapabilityStatesFormatting() {
+        // State 1: Measuring
+        #expect(TuckedFormatter.formatFanCapability(.measuring) == "Measuring…")
+        
+        // State 2: Fanless
+        #expect(TuckedFormatter.formatFanCapability(.fanless) == "Fanless")
+        
+        // State 3: Zero RPM (single and dual)
+        #expect(TuckedFormatter.formatFanCapability(.zeroRPM(rpms: [0])) == "0 RPM")
+        #expect(TuckedFormatter.formatFanCapability(.zeroRPM(rpms: [0, 0])) == "0 / 0 RPM")
+        
+        // State 4: Active RPM
+        #expect(TuckedFormatter.formatFanCapability(.active(rpms: [1840])) == "1840 RPM")
+        #expect(TuckedFormatter.formatFanCapability(.active(rpms: [1840, 1920])) == "1840 / 1920 RPM")
+        
+        // State 5: Not Found (known fans, sensor unreadable)
+        #expect(TuckedFormatter.formatFanCapability(.notFound) == "Not Found")
+        
+        // State 6: Indeterminate
+        #expect(TuckedFormatter.formatFanCapability(.indeterminate) == "\u{2014}")
+    }
+    
+    @Test func testThermalSnapshotIndependentStates() {
+        // CPU temp active with fan measuring
+        let s1 = ThermalSnapshot(
+            cpuTemperatureCelsius: 52,
+            temperatureState: .active(celsius: 52),
+            fanState: .measuring,
+            fans: []
+        )
+        #expect(s1.cpuTemperatureCelsius == 52)
+        #expect(s1.temperatureState == .active(celsius: 52))
+        #expect(s1.fanState == .measuring)
+        #expect(TuckedFormatter.formatFanCapability(s1.fanState) == "Measuring…")
+        #expect(TuckedFormatter.formatTemperature(s1.cpuTemperatureCelsius) == "52°C")
+        
+        // CPU temp unavailable with fans active
+        let s2 = ThermalSnapshot(
+            cpuTemperatureCelsius: nil,
+            temperatureState: .unavailable,
+            fanState: .active(rpms: [2100]),
+            fans: [FanReading(id: 0, displayName: "Fan 1", rpm: 2100)]
+        )
+        #expect(s2.temperatureState == .unavailable)
+        #expect(s2.fanState == .active(rpms: [2100]))
+        #expect(TuckedFormatter.formatFanCapability(s2.fanState) == "2100 RPM")
+        
+        // Fanless machine
+        let s3 = ThermalSnapshot(
+            cpuTemperatureCelsius: 45,
+            temperatureState: .active(celsius: 45),
+            fanState: .fanless,
+            fans: []
+        )
+        #expect(s3.fanState == .fanless)
+        #expect(s3.state == .fanless)
+        #expect(TuckedFormatter.formatFanCapability(s3.fanState) == "Fanless")
+        
+        // Fans not found
+        let s4 = ThermalSnapshot(
+            cpuTemperatureCelsius: 60,
+            temperatureState: .active(celsius: 60),
+            fanState: .notFound,
+            fans: []
+        )
+        #expect(s4.fanState == .notFound)
+        #expect(TuckedFormatter.formatFanCapability(s4.fanState) == "Not Found")
+        
+        // Fan capability indeterminate
+        let s5 = ThermalSnapshot(
+            cpuTemperatureCelsius: nil,
+            temperatureState: .unavailable,
+            fanState: .indeterminate,
+            fans: []
+        )
+        #expect(s5.fanState == .indeterminate)
+        #expect(TuckedFormatter.formatFanCapability(s5.fanState) == "\u{2014}")
+    }
+    
+    @Test func testMachineInfoFanHardwareEvidence() {
+        // Fanless Air models
+        let air1 = MachineInfo(
+            model: "MacBookAir10,1",
+            chip: "Apple M1",
+            coreCount: 8,
+            memoryBytes: 8589934592,
+            osVersion: "14.5",
+            osBuild: "23F79",
+            architecture: "arm64"
+        )
+        #expect(air1.fanHardwareEvidence == .fanless)
+        
+        let air2 = MachineInfo(
+            model: "Mac14,2",
+            chip: "Apple M2",
+            coreCount: 8,
+            memoryBytes: 8589934592,
+            osVersion: "14.5",
+            osBuild: "23F79",
+            architecture: "arm64"
+        )
+        #expect(air2.fanHardwareEvidence == .fanless)
+        
+        // Hardware with fans
+        let pro = MachineInfo(
+            model: "MacBookPro18,1",
+            chip: "Apple M1 Pro",
+            coreCount: 10,
+            memoryBytes: 17179869184,
+            osVersion: "14.5",
+            osBuild: "23F79",
+            architecture: "arm64"
+        )
+        #expect(pro.fanHardwareEvidence == .hasFans)
+        
+        let mini = MachineInfo(
+            model: "Macmini9,1",
+            chip: "Apple M1",
+            coreCount: 8,
+            memoryBytes: 8589934592,
+            osVersion: "14.5",
+            osBuild: "23F79",
+            architecture: "arm64"
+        )
+        #expect(mini.fanHardwareEvidence == .hasFans)
+        
+        // Indeterminate
+        let unknown = MachineInfo(
+            model: "VirtualMac2,1",
+            chip: "Virtual CPU",
+            coreCount: 4,
+            memoryBytes: 4294967296,
+            osVersion: "14.5",
+            osBuild: "23F79",
+            architecture: "arm64"
+        )
+        #expect(unknown.fanHardwareEvidence == .indeterminate)
+    }
+    
+    @Test func testBoundedDiscoveryNeverStuckInMeasuring() {
+        let provider = ThermalProvider()
+        
+        // Fanless hardware resolves immediately without retry
+        let snapFanless = provider.sample(hardwareEvidence: .fanless)
+        #expect(snapFanless.fanState == .fanless)
+        
+        provider.reset()
+        
+        // Indeterminate hardware: attempts 1..3
+        _ = provider.sample(hardwareEvidence: .indeterminate)
+        _ = provider.sample(hardwareEvidence: .indeterminate)
+        let s3 = provider.sample(hardwareEvidence: .indeterminate)
+        
+        // After maxDiscoveryAttempts, fanState must never be measuring
+        #expect(s3.fanState != .measuring)
+        
+        // If discovery failed without reading fans, it must never fake fanless or zero RPM
+        if s3.fans.isEmpty {
+            #expect(s3.fanState != .fanless)
+            #expect(s3.fanState == .notFound || s3.fanState == .indeterminate)
+        }
+        
+        provider.stop()
+    }
+}
+
 
 

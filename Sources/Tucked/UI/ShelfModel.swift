@@ -12,10 +12,10 @@ public final class ShelfModel: ObservableObject {
     @Published public var currentRoute: ShelfRoute = .overview
     @Published public var systemSnapshot: SystemSnapshot = SystemSnapshot()
     @Published public var diagnosticSnapshot: DiagnosticSnapshot = DiagnosticSnapshot()
-    @Published public var cpuHistory: [Double] = []
-    @Published public var memoryHistory: [Double] = []
-    @Published public var networkRxHistory: [Double] = []
-    @Published public var networkTxHistory: [Double] = []
+    @Published public var cpuHistory: [Double?] = []
+    @Published public var memoryHistory: [Double?] = []
+    @Published public var networkRxHistory: [Double?] = []
+    @Published public var networkTxHistory: [Double?] = []
     
     // Status message for process termination
     @Published public var quitStatusMessage: String?

@@ -277,25 +277,28 @@ public struct OverviewView: View {
     // MARK: - Computed Formatters
     
     private var formattedTemp: String {
-        if let celsius = model.diagnosticSnapshot.thermal.cpuTemperatureCelsius {
+        switch model.diagnosticSnapshot.thermal.temperatureState {
+        case .measuring:
+            return "Measuring…"
+        case .active(let celsius):
             return "\(celsius)°C"
+        case .unavailable:
+            return "-"
         }
-        return model.diagnosticSnapshot.thermal.state == .unavailable ? "-" : "Measuring…"
     }
     
     private var fanLabel: String {
+        if case .active(let rpms) = model.diagnosticSnapshot.thermal.fanState, rpms.count > 1 {
+            return "Fans"
+        }
+        if case .zeroRPM(let rpms) = model.diagnosticSnapshot.thermal.fanState, rpms.count > 1 {
+            return "Fans"
+        }
         return model.diagnosticSnapshot.thermal.fans.count > 1 ? "Fans" : "Fan"
     }
     
     private var formattedFan: String {
-        let thermal = model.diagnosticSnapshot.thermal
-        if thermal.state == .fanless {
-            return "Fanless"
-        }
-        if !thermal.fans.isEmpty {
-            return TuckedFormatter.formatFanRPM(isFanless: false, rpms: thermal.fans.map { $0.rpm })
-        }
-        return thermal.state == .unavailable ? "-" : "Measuring…"
+        TuckedFormatter.formatFanCapability(model.diagnosticSnapshot.thermal.fanState)
     }
     
     private var formattedLatency: String {

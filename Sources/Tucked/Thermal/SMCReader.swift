@@ -107,32 +107,39 @@ public final class SMCReader: @unchecked Sendable {
         }
     }
 
-    /// Discovers supported CPU temperature keys and fan configuration once per session.
+    /// Discovers supported CPU temperature keys and fan configuration.
     public func discoverSensors() {
         guard open() else { return }
         lock.lock()
         defer { lock.unlock() }
         
-        guard !isDiscovered else { return }
-        
         // 1. Discover Fan Count
         if let countVal = readNumericKey(SensorCatalog.fanCountKey) {
             discoveredFanCount = Int(countVal)
-        } else {
-            discoveredFanCount = nil
+        } else if readNumericKey(SensorCatalog.fanActualRPMKey(index: 0)) != nil {
+            discoveredFanCount = 1
         }
         
         // 2. Discover Valid CPU Temperature Keys
-        var workingKeys: [String] = []
-        for key in SensorCatalog.knownCPUTemperatureKeys {
-            if let temp = readTemperatureKey(key), temp > 0, temp < 130 {
-                workingKeys.append(key)
+        if validatedCPUKeys.isEmpty {
+            var workingKeys: [String] = []
+            for key in SensorCatalog.knownCPUTemperatureKeys {
+                if let temp = readTemperatureKey(key), temp > 0, temp < 130 {
+                    workingKeys.append(key)
+                }
             }
+            validatedCPUKeys = workingKeys
         }
-        validatedCPUKeys = workingKeys
         isDiscovered = true
         
         TuckedLog.thermal.info("Thermal discovery complete: fans=\(String(describing: self.discoveredFanCount)), cpuKeys=\(self.validatedCPUKeys.count)")
+    }
+    
+    public func resetDiscovery() {
+        lock.lock()
+        defer { lock.unlock() }
+        isDiscovered = false
+        discoveredFanCount = nil
     }
 
     /// Reads representative CPU temperature (average of validated CPU sensor keys in Celsius).
@@ -170,24 +177,37 @@ public final class SMCReader: @unchecked Sendable {
         return Int(round(sum / Double(count)))
     }
 
-    /// Reads fan RPM readings. Distinguishes fanless hardware from 0 RPM fans.
-    public func readFans() -> (readings: [FanReading], isFanless: Bool) {
-        guard open() else { return ([], false) }
+    /// Reads fan RPM readings. Distinguishes fanless hardware from 0 RPM fans and unlocatable sensors.
+    public func readFans(hardwareEvidence: FanHardwareEvidence = .indeterminate) -> (readings: [FanReading], isFanless: Bool, fanCount: Int?) {
+        guard open() else { return ([], false, nil) }
         lock.lock()
         defer { lock.unlock() }
         
-        if !isDiscovered {
+        if hardwareEvidence == .fanless {
+            return ([], true, 0)
+        }
+        
+        if !isDiscovered || discoveredFanCount == nil {
             lock.unlock()
             discoverSensors()
             lock.lock()
         }
         
+        // Fallback: If FNum was nil, check if F0Ac responds or model confirms fans
+        if discoveredFanCount == nil {
+            if readNumericKey(SensorCatalog.fanActualRPMKey(index: 0)) != nil {
+                discoveredFanCount = 1
+            } else if hardwareEvidence == .hasFans {
+                discoveredFanCount = 1
+            }
+        }
+        
         guard let count = discoveredFanCount else {
-            return ([], false)
+            return ([], false, nil)
         }
         
         if count == 0 {
-            return ([], true)
+            return ([], true, 0)
         }
         
         var readings: [FanReading] = []
@@ -197,13 +217,13 @@ public final class SMCReader: @unchecked Sendable {
                 let rounded = max(0, Int(round(rpm)))
                 lastKnownFanRPMs[i] = rounded
                 readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: rounded))
-            } else {
-                let fallback = lastKnownFanRPMs[i] ?? 0
-                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: fallback))
+            } else if let cached = lastKnownFanRPMs[i] {
+                readings.append(FanReading(id: i, displayName: "Fan \(i + 1)", rpm: cached))
             }
+            // Do not fake 0 RPM if reading fails and there is no cached verified reading
         }
         
-        return (readings, false)
+        return (readings, false, count)
     }
 
     // MARK: - Low-Level Read-Only Operations
