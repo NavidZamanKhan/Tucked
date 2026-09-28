@@ -18,7 +18,7 @@ public struct MachineInfo: Sendable {
     
     public var fanHardwareEvidence: FanHardwareEvidence {
         let m = model.lowercased()
-        if m.contains("air") || m == "mac14,2" || m == "mac14,15" || m == "mac15,2" || m == "mac15,12" || m == "mac15,13" {
+        if m.contains("air") || m.contains("neo") || m == "mac14,2" || m == "mac14,15" || m == "mac15,2" || m == "mac15,12" || m == "mac15,13" {
             return .fanless
         }
         if m.contains("pro") || m.contains("mini") || m.contains("studio") || m.contains("imac") {
@@ -26,7 +26,8 @@ public struct MachineInfo: Sendable {
         }
         if m == "mac13,1" || m == "mac13,2" || m == "mac14,3" || m == "mac14,5" || m == "mac14,6" ||
            m == "mac14,7" || m == "mac14,8" || m == "mac14,9" || m == "mac14,10" || m == "mac14,12" ||
-           m == "mac14,13" || m == "mac14,14" || m.hasPrefix("mac15,") || m.hasPrefix("mac16,") {
+           m == "mac14,13" || m == "mac14,14" || m.hasPrefix("mac15,") || m.hasPrefix("mac16,") ||
+           m.hasPrefix("mac17,") || m.hasPrefix("mac18,") {
             return .hasFans
         }
         return .indeterminate

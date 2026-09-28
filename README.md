@@ -50,7 +50,7 @@ Tucked operates in two distinct modes to maintain near-zero CPU and energy impac
 
 ## Requirements
 
-- Platform: Apple Silicon Mac (M1, M2, M3, M4, M5 series and Pro/Max/Ultra variants)
+- Platform: All ARM-based Macs and MacBooks (Apple Silicon M1 through M6 series, A-series including A18 Pro, and Pro/Max/Ultra variants)
 - Operating System: macOS 14.0 (Sonoma) or later
 - Architecture: arm64
 

@@ -815,6 +815,17 @@ struct FanAndThermalCapabilityTests {
         )
         #expect(mini.fanHardwareEvidence == .hasFans)
         
+        let neo = MachineInfo(
+            model: "MacBookNeo1,1",
+            chip: "Apple A18 Pro",
+            coreCount: 6,
+            memoryBytes: 8589934592,
+            osVersion: "15.0",
+            osBuild: "24A100",
+            architecture: "arm64"
+        )
+        #expect(neo.fanHardwareEvidence == .fanless)
+        
         // Indeterminate
         let unknown = MachineInfo(
             model: "VirtualMac2,1",
