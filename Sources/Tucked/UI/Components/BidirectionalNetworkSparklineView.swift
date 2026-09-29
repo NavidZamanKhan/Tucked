@@ -11,8 +11,8 @@ public struct BidirectionalNetworkSparklineView: View {
     public init(
         uploadData: [Double?],
         downloadData: [Double?],
-        uploadColor: Color = .teal,
-        downloadColor: Color = .pink,
+        uploadColor: Color = .pink,
+        downloadColor: Color = .teal,
         capacity: Int = 90
     ) {
         self.uploadData = uploadData
@@ -25,8 +25,8 @@ public struct BidirectionalNetworkSparklineView: View {
     public init(
         uploadData: [Double],
         downloadData: [Double],
-        uploadColor: Color = .teal,
-        downloadColor: Color = .pink,
+        uploadColor: Color = .pink,
+        downloadColor: Color = .teal,
         capacity: Int = 90
     ) {
         self.uploadData = uploadData.map { Optional($0) }
@@ -57,68 +57,7 @@ public struct BidirectionalNetworkSparklineView: View {
             let startX = max(0, size.width - CGFloat(maxSamples - 1) * stepX)
             let strokeStyle = StrokeStyle(lineWidth: pixel, lineCap: .round, lineJoin: .round)
 
-            // Partition Download into contiguous non-nil segments
-            let downloadCeiling = Self.steppedCeiling(for: visibleDownload.compactMap { $0 }.max() ?? 0.0)
-            var rxSegments: [[(point: CGPoint, value: Double)]] = []
-            var currentRx: [(point: CGPoint, value: Double)] = []
-
-            for (index, maybeValue) in visibleDownload.enumerated() {
-                guard let value = maybeValue else {
-                    if !currentRx.isEmpty {
-                        rxSegments.append(currentRx)
-                        currentRx = []
-                    }
-                    continue
-                }
-                let rawX = startX + CGFloat(index) * stepX
-                let alignedX = floor(rawX * scale) * pixel
-                let normalized = CGFloat(max(0.0, min(1.0, value / downloadCeiling)))
-                let rawY = midY - (normalized * usableHalfHeight)
-                let alignedY = floor(rawY * scale + 0.5) * pixel
-                currentRx.append((point: CGPoint(x: alignedX, y: alignedY), value: value))
-            }
-            if !currentRx.isEmpty {
-                rxSegments.append(currentRx)
-            }
-
-            let rxShading = GraphicsContext.Shading.linearGradient(
-                Gradient(colors: [
-                    downloadColor.opacity(0.35),
-                    downloadColor.opacity(0.08)
-                ]),
-                startPoint: CGPoint(x: 0, y: midY - usableHalfHeight),
-                endPoint: CGPoint(x: 0, y: midY)
-            )
-
-            for segment in rxSegments {
-                if segment.count >= 2 && segment.contains(where: { $0.value > 0 }) {
-                    var rxArea = Path()
-                    rxArea.move(to: CGPoint(x: segment[0].point.x, y: midY))
-                    rxArea.addLine(to: segment[0].point)
-                    for item in segment.dropFirst() {
-                        rxArea.addLine(to: item.point)
-                    }
-                    rxArea.addLine(to: CGPoint(x: segment[segment.count - 1].point.x, y: midY))
-                    rxArea.closeSubpath()
-                    context.fill(rxArea, with: rxShading)
-
-                    var rxStroke = Path()
-                    for i in 1..<segment.count {
-                        if segment[i].value > 0 || segment[i - 1].value > 0 {
-                            rxStroke.move(to: segment[i - 1].point)
-                            rxStroke.addLine(to: segment[i].point)
-                        }
-                    }
-                    context.stroke(rxStroke, with: .color(downloadColor.opacity(0.95)), style: strokeStyle)
-                } else if segment.count == 1 && segment[0].value > 0 {
-                    var singlePath = Path()
-                    singlePath.move(to: CGPoint(x: segment[0].point.x, y: midY))
-                    singlePath.addLine(to: segment[0].point)
-                    context.stroke(singlePath, with: .color(downloadColor.opacity(0.95)), style: strokeStyle)
-                }
-            }
-
-            // Partition Upload into contiguous non-nil segments
+            // Partition Upload into contiguous non-nil segments (pointing UP above center baseline)
             let uploadCeiling = Self.steppedCeiling(for: visibleUpload.compactMap { $0 }.max() ?? 0.0)
             var txSegments: [[(point: CGPoint, value: Double)]] = []
             var currentTx: [(point: CGPoint, value: Double)] = []
@@ -134,7 +73,7 @@ public struct BidirectionalNetworkSparklineView: View {
                 let rawX = startX + CGFloat(index) * stepX
                 let alignedX = floor(rawX * scale) * pixel
                 let normalized = CGFloat(max(0.0, min(1.0, value / uploadCeiling)))
-                let rawY = midY + (normalized * usableHalfHeight)
+                let rawY = midY - (normalized * usableHalfHeight)
                 let alignedY = floor(rawY * scale + 0.5) * pixel
                 currentTx.append((point: CGPoint(x: alignedX, y: alignedY), value: value))
             }
@@ -144,11 +83,11 @@ public struct BidirectionalNetworkSparklineView: View {
 
             let txShading = GraphicsContext.Shading.linearGradient(
                 Gradient(colors: [
-                    uploadColor.opacity(0.08),
-                    uploadColor.opacity(0.35)
+                    uploadColor.opacity(0.35),
+                    uploadColor.opacity(0.08)
                 ]),
-                startPoint: CGPoint(x: 0, y: midY),
-                endPoint: CGPoint(x: 0, y: midY + usableHalfHeight)
+                startPoint: CGPoint(x: 0, y: midY - usableHalfHeight),
+                endPoint: CGPoint(x: 0, y: midY)
             )
 
             for segment in txSegments {
@@ -176,6 +115,67 @@ public struct BidirectionalNetworkSparklineView: View {
                     singlePath.move(to: CGPoint(x: segment[0].point.x, y: midY))
                     singlePath.addLine(to: segment[0].point)
                     context.stroke(singlePath, with: .color(uploadColor.opacity(0.95)), style: strokeStyle)
+                }
+            }
+
+            // Partition Download into contiguous non-nil segments (pointing DOWN below center baseline)
+            let downloadCeiling = Self.steppedCeiling(for: visibleDownload.compactMap { $0 }.max() ?? 0.0)
+            var rxSegments: [[(point: CGPoint, value: Double)]] = []
+            var currentRx: [(point: CGPoint, value: Double)] = []
+
+            for (index, maybeValue) in visibleDownload.enumerated() {
+                guard let value = maybeValue else {
+                    if !currentRx.isEmpty {
+                        rxSegments.append(currentRx)
+                        currentRx = []
+                    }
+                    continue
+                }
+                let rawX = startX + CGFloat(index) * stepX
+                let alignedX = floor(rawX * scale) * pixel
+                let normalized = CGFloat(max(0.0, min(1.0, value / downloadCeiling)))
+                let rawY = midY + (normalized * usableHalfHeight)
+                let alignedY = floor(rawY * scale + 0.5) * pixel
+                currentRx.append((point: CGPoint(x: alignedX, y: alignedY), value: value))
+            }
+            if !currentRx.isEmpty {
+                rxSegments.append(currentRx)
+            }
+
+            let rxShading = GraphicsContext.Shading.linearGradient(
+                Gradient(colors: [
+                    downloadColor.opacity(0.08),
+                    downloadColor.opacity(0.35)
+                ]),
+                startPoint: CGPoint(x: 0, y: midY),
+                endPoint: CGPoint(x: 0, y: midY + usableHalfHeight)
+            )
+
+            for segment in rxSegments {
+                if segment.count >= 2 && segment.contains(where: { $0.value > 0 }) {
+                    var rxArea = Path()
+                    rxArea.move(to: CGPoint(x: segment[0].point.x, y: midY))
+                    rxArea.addLine(to: segment[0].point)
+                    for item in segment.dropFirst() {
+                        rxArea.addLine(to: item.point)
+                    }
+                    rxArea.addLine(to: CGPoint(x: segment[segment.count - 1].point.x, y: midY))
+                    rxArea.closeSubpath()
+                    context.fill(rxArea, with: rxShading)
+
+                    var rxStroke = Path()
+                    for i in 1..<segment.count {
+                        if segment[i].value > 0 || segment[i - 1].value > 0 {
+                            rxStroke.move(to: segment[i - 1].point)
+                            rxStroke.addLine(to: segment[i].point)
+                        }
+                    }
+                    context.stroke(rxStroke, with: .color(downloadColor.opacity(0.95)), style: strokeStyle)
+                } else if segment.count == 1 && segment[0].value > 0 {
+                    var singlePath = Path()
+                    singlePath.move(to: CGPoint(x: segment[0].point.x, y: midY))
+                    singlePath.addLine(to: segment[0].point)
+                    context.stroke(singlePath, with: .color(downloadColor.opacity(0.95)), style: strokeStyle)
                 }
             }
 

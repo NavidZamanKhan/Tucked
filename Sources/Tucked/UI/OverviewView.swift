@@ -120,7 +120,7 @@ public struct OverviewView: View {
                     HStack(spacing: 4) {
                         Text("↓")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.pink)
+                            .foregroundColor(.teal)
                         Text(TuckedFormatter.formatPanelRate(model.systemSnapshot.network.rxBytesPerSecond))
                             .font(.system(size: 15, weight: .semibold, design: .monospaced))
                             .foregroundColor(.primary)
@@ -130,7 +130,7 @@ public struct OverviewView: View {
                     HStack(spacing: 4) {
                         Text("↑")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.teal)
+                            .foregroundColor(.pink)
                         Text(TuckedFormatter.formatPanelRate(model.systemSnapshot.network.txBytesPerSecond))
                             .font(.system(size: 15, weight: .semibold, design: .monospaced))
                             .foregroundColor(.primary)
@@ -143,8 +143,8 @@ public struct OverviewView: View {
                 BidirectionalNetworkSparklineView(
                     uploadData: model.networkTxHistory,
                     downloadData: model.networkRxHistory,
-                    uploadColor: .teal,
-                    downloadColor: .pink
+                    uploadColor: .pink,
+                    downloadColor: .teal
                 )
                 
                 HStack(spacing: 24) {
