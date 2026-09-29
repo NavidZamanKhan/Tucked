@@ -11,8 +11,8 @@ public struct BidirectionalNetworkSparklineView: View {
     public init(
         uploadData: [Double?],
         downloadData: [Double?],
-        uploadColor: Color = .pink,
-        downloadColor: Color = .teal,
+        uploadColor: Color = .teal,
+        downloadColor: Color = .red,
         capacity: Int = 90
     ) {
         self.uploadData = uploadData
@@ -25,8 +25,8 @@ public struct BidirectionalNetworkSparklineView: View {
     public init(
         uploadData: [Double],
         downloadData: [Double],
-        uploadColor: Color = .pink,
-        downloadColor: Color = .teal,
+        uploadColor: Color = .teal,
+        downloadColor: Color = .red,
         capacity: Int = 90
     ) {
         self.uploadData = uploadData.map { Optional($0) }

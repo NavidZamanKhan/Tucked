@@ -328,22 +328,22 @@ struct SparklineViewsTests {
         let view = BidirectionalNetworkSparklineView(
             uploadData: [0, 500, 10000, 0],
             downloadData: [0, 1500, 20000, 0],
-            uploadColor: .pink,
-            downloadColor: .teal,
+            uploadColor: .teal,
+            downloadColor: .red,
             capacity: 90
         )
         #expect(view.uploadData.count == 4)
         #expect(view.downloadData.count == 4)
         #expect(view.capacity == 90)
-        #expect(view.uploadColor == .pink)
-        #expect(view.downloadColor == .teal)
+        #expect(view.uploadColor == .teal)
+        #expect(view.downloadColor == .red)
 
         let defaultView = BidirectionalNetworkSparklineView(
             uploadData: [100.0],
             downloadData: [200.0]
         )
-        #expect(defaultView.uploadColor == .pink)
-        #expect(defaultView.downloadColor == .teal)
+        #expect(defaultView.uploadColor == .teal)
+        #expect(defaultView.downloadColor == .red)
     }
 }
 
